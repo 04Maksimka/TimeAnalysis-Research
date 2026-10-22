@@ -1,0 +1,23 @@
+[
+  {
+    "listing": "/exploratory-data-analysis.html",
+    "items": [
+      "/posts/exploratory-data-analysis/alpha-01-eda.html"
+    ]
+  },
+  {
+    "listing": "/educational.html",
+    "items": [
+      "/posts/educational/related-topics/neural_ntworks/math_bihind_nn.html",
+      "/posts/educational/related-topics/parametric-estimates.html",
+      "/posts/educational/related-topics/lagutin-statistical-experiments.html",
+      "/posts/educational/related-topics/component-analysis.html"
+    ]
+  },
+  {
+    "listing": "/model-strategies.html",
+    "items": [
+      "/posts/model-strategies/rsi-only-strategy.html"
+    ]
+  }
+]

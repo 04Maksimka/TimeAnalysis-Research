@@ -1,0 +1,2083 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.36">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="TimeAnalysis Team">
+<meta name="dcterms.date" content="2026-07-14">
+<meta name="description" content="Long-only mean-reversion strategy based only on RSI, optimized with Freqtrade Hyperopt.">
+
+<title>RSI-only strategy: Freqtrade Hyperopt – TimeAnalysis Research</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-a0f9fd0d421825b736dc1bbcbcba2219.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">TimeAnalysis Research</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../index.html"> 
+<span class="menu-text">Categories</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../model-strategies.html"> 
+<span class="menu-text">Models &amp; Strategies</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../educational.html"> 
+<span class="menu-text">Educational</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../project-infrastructure.html"> 
+<span class="menu-text">Infrastructure</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../exploratory-data-analysis.html"> 
+<span class="menu-text">EDA</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/04Maksimka/TimeAnalysis-Research"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#goal" id="toc-goal" class="nav-link active" data-scroll-target="#goal">Goal</a></li>
+  <li><a href="#can-freqtrade-optimize-rsi-parameters" id="toc-can-freqtrade-optimize-rsi-parameters" class="nav-link" data-scroll-target="#can-freqtrade-optimize-rsi-parameters">Can Freqtrade optimize RSI parameters?</a></li>
+  <li><a href="#reproduction" id="toc-reproduction" class="nav-link" data-scroll-target="#reproduction">Reproduction</a></li>
+  <li><a href="#visual-inspection" id="toc-visual-inspection" class="nav-link" data-scroll-target="#visual-inspection">Visual inspection</a></li>
+  <li><a href="#in-sample-bias-warning" id="toc-in-sample-bias-warning" class="nav-link" data-scroll-target="#in-sample-bias-warning">In-sample bias warning</a></li>
+  <li><a href="#backtest-results" id="toc-backtest-results" class="nav-link" data-scroll-target="#backtest-results">Backtest results</a></li>
+  <li><a href="#m-traintest-extension" id="toc-m-traintest-extension" class="nav-link" data-scroll-target="#m-traintest-extension">5m train/test extension</a>
+  <ul class="collapse">
+  <li><a href="#m-reproduction-commands" id="toc-m-reproduction-commands" class="nav-link" data-scroll-target="#m-reproduction-commands">5m reproduction commands</a></li>
+  <li><a href="#m-optimized-parameters" id="toc-m-optimized-parameters" class="nav-link" data-scroll-target="#m-optimized-parameters">5m optimized parameters</a></li>
+  <li><a href="#m-baseline-rsi-only" id="toc-m-baseline-rsi-only" class="nav-link" data-scroll-target="#m-baseline-rsi-only">5m baseline RSI-only</a></li>
+  <li><a href="#m-risk-managed-rsi" id="toc-m-risk-managed-rsi" class="nav-link" data-scroll-target="#m-risk-managed-rsi">5m risk-managed RSI</a></li>
+  <li><a href="#m-test-comparison" id="toc-m-test-comparison" class="nav-link" data-scroll-target="#m-test-comparison">5m test comparison</a></li>
+  <li><a href="#m-conclusion" id="toc-m-conclusion" class="nav-link" data-scroll-target="#m-conclusion">5m conclusion</a></li>
+  <li><a href="#stoploss--5-sensitivity-check" id="toc-stoploss--5-sensitivity-check" class="nav-link" data-scroll-target="#stoploss--5-sensitivity-check">Stoploss -5% sensitivity check</a></li>
+  </ul></li>
+  <li><a href="#notes-and-limitations" id="toc-notes-and-limitations" class="nav-link" data-scroll-target="#notes-and-limitations">Notes and limitations</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/04Maksimka/TimeAnalysis-Research/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">RSI-only strategy: Freqtrade Hyperopt</h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
+  <div class="quarto-categories">
+    <div class="quarto-category">Freqtrade</div>
+    <div class="quarto-category">Backtesting</div>
+    <div class="quarto-category">Strategies</div>
+    <div class="quarto-category">RSI</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    Long-only mean-reversion strategy based only on RSI, optimized with Freqtrade Hyperopt.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>TimeAnalysis Team </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">July 14, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="goal" class="level2">
+<h2 class="anchored" data-anchor-id="goal">Goal</h2>
+<p>This experiment builds the smallest useful RSI strategy for Freqtrade: only one indicator, no trend filters, no extra guards, and no ML. The strategy is long-only and mean-reverting:</p>
+<ul>
+<li>enter long when RSI crosses below the lower RSI boundary;</li>
+<li>exit long when RSI crosses above the upper RSI boundary;</li>
+<li>keep ROI effectively disabled with <code>minimal_roi = {"0": 100}</code>;</li>
+<li>keep an emergency-wide stoploss at <code>-0.99</code>, so normal exits are RSI exits.</li>
+</ul>
+<p>The implementation lives in <code>user_data/strategies/rsi_only/RsiOnlyStrategy.py</code>, with a dedicated config in <code>user_data/strategies/rsi_only/config_rsi_only_1h.json</code>.</p>
+</section>
+<section id="can-freqtrade-optimize-rsi-parameters" class="level2">
+<h2 class="anchored" data-anchor-id="can-freqtrade-optimize-rsi-parameters">Can Freqtrade optimize RSI parameters?</h2>
+<p>Yes. Freqtrade can optimize RSI boundaries and RSI period internally with Hyperopt. The strategy exposes the parameters as <code>IntParameter</code>:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th style="text-align: right;">Hyperopt space</th>
+<th style="text-align: right;">Range</th>
+<th style="text-align: right;">Best value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>buy_rsi_period</code></td>
+<td style="text-align: right;"><code>buy</code></td>
+<td style="text-align: right;">7-30</td>
+<td style="text-align: right;">22</td>
+</tr>
+<tr class="even">
+<td><code>buy_rsi_lower</code></td>
+<td style="text-align: right;"><code>buy</code></td>
+<td style="text-align: right;">10-45</td>
+<td style="text-align: right;">18</td>
+</tr>
+<tr class="odd">
+<td><code>sell_rsi_upper</code></td>
+<td style="text-align: right;"><code>sell</code></td>
+<td style="text-align: right;">55-90</td>
+<td style="text-align: right;">57</td>
+</tr>
+</tbody>
+</table>
+<p>The period is the subtle part: because RSI period changes the indicator itself, the strategy calculates RSI columns with <code>self.buy_rsi_period.range</code>. This is a standard Freqtrade pattern for optimizing indicator periods without recalculating the whole dataframe incorrectly for every epoch.</p>
+</section>
+<section id="reproduction" class="level2">
+<h2 class="anchored" data-anchor-id="reproduction">Reproduction</h2>
+<p>The commands below were run from <code>C:\WorkPrograms\TimeAnalysis</code>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>uv sync <span class="op">--</span>dev</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Freqtrade Hyperopt needs <code>optuna</code>, <code>cmaes</code>, and <code>filelock</code> in addition to the normal bot dependencies. These are now tracked in <code>pyproject.toml</code>, so a normal <code>uv sync --dev</code> is enough.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>uv run freqtrade list-strategies <span class="op">--</span>userdir user_data</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">.</span>\<span class="op">.</span><span class="fu">venv</span>\Scripts\ruff<span class="op">.</span><span class="fu">exe</span> check user_data\strategies\rsi_only\RsiOnlyStrategy<span class="op">.</span><span class="fu">py</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>--strategy-path user_data/strategies</code> is intentionally omitted. With <code>--userdir user_data</code>, Freqtrade already scans <code>user_data/strategies</code>; passing the same path again causes duplicate strategy entries.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>uv run freqtrade download-data <span class="op">--</span>userdir user_data <span class="op">--</span>config user_data<span class="op">/</span>strategies<span class="op">/</span>rsi_only<span class="op">/</span>config_rsi_only_1h<span class="op">.</span><span class="fu">json</span> <span class="op">--</span>timeframes 1h <span class="op">--</span>timerange <span class="dv">20250101</span><span class="op">-</span><span class="dv">20260714</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Downloaded data:</p>
+<ul>
+<li>exchange: Binance spot;</li>
+<li>timeframe: <code>1h</code>;</li>
+<li>pairs: <code>BTC/USDT</code>, <code>ETH/USDT</code>, <code>BNB/USDT</code>, <code>XRP/USDT</code>, <code>SOL/USDT</code>, <code>TRX/USDT</code>, <code>DOGE/USDT</code>, <code>ADA/USDT</code>, <code>LINK/USDT</code>, <code>AVAX/USDT</code>;</li>
+<li>downloaded candles: 13,434 per pair.</li>
+</ul>
+<p>Hyperopt command:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>uv run freqtrade hyperopt <span class="op">--</span>userdir user_data <span class="op">--</span>config user_data<span class="op">/</span>strategies<span class="op">/</span>rsi_only<span class="op">/</span>config_rsi_only_1h<span class="op">.</span><span class="fu">json</span> <span class="op">--</span>strategy RsiOnlyStrategy <span class="op">--</span>timeframe 1h <span class="op">--</span>timerange <span class="dv">20250101</span><span class="op">-</span><span class="dv">20260714</span> <span class="op">--</span>spaces buy sell <span class="op">--</span>hyperopt-loss ProfitDrawDownHyperOptLoss <span class="op">-</span>e <span class="dv">300</span> <span class="op">--</span>random-state <span class="dv">42</span> <span class="op">--</span>min-trades <span class="dv">10</span> <span class="op">-</span>j <span class="op">-</span><span class="dv">2</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Best Hyperopt epoch: 277/300, objective <code>-56.89194</code>, 26 trades, 19 wins, 7 losses.</p>
+<p>Final backtest command:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>uv run freqtrade backtesting <span class="op">--</span>userdir user_data <span class="op">--</span>config user_data<span class="op">/</span>strategies<span class="op">/</span>rsi_only<span class="op">/</span>config_rsi_only_1h<span class="op">.</span><span class="fu">json</span> <span class="op">--</span>strategy RsiOnlyStrategy <span class="op">--</span>timeframe 1h <span class="op">--</span>timerange <span class="dv">20250101</span><span class="op">-</span><span class="dv">20260714</span> <span class="op">--</span>export trades <span class="op">--</span>breakdown month <span class="op">--</span>cache none</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Artifacts:</p>
+<ul>
+<li>Hyperopt result: <code>user_data/hyperopt_results/strategy_RsiOnlyStrategy_2026-07-14_21-55-13.fthypt</code>;</li>
+<li>exported parameters: <code>user_data/strategies/rsi_only/RsiOnlyStrategy.json</code>;</li>
+<li>final backtest: <code>user_data/backtest_results/backtest-result-2026-07-14_22-02-06.zip</code>.</li>
+</ul>
+</section>
+<section id="visual-inspection" class="level2">
+<h2 class="anchored" data-anchor-id="visual-inspection">Visual inspection</h2>
+<p>Freqtrade has two practical ways to inspect buy and sell points.</p>
+<p>The preferred interactive path is FreqUI:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>uv run freqtrade webserver <span class="op">--</span>userdir user_data <span class="op">--</span>config user_data<span class="op">/</span>strategies<span class="op">/</span>rsi_only<span class="op">/</span>config_rsi_only_1h<span class="op">.</span><span class="fu">json</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Then open <code>http://127.0.0.1:8080</code>, log in with the local credentials from the config, and use the Backtesting view. FreqUI can load previous backtest results from <code>user_data/backtest_results</code>, including <code>backtest-result-2026-07-14_22-02-06.zip</code>. Open a pair chart from that result and load the strategy plot configuration. <code>RsiOnlyStrategy</code> exposes an RSI subplot with <code>rsi</code>, <code>rsi_lower</code>, and <code>rsi_upper</code>, so entries, exits, and RSI thresholds can be inspected on the same chart.</p>
+<p>For the static research report, the saved backtest zip and OHLCV feather data were converted into PNG figures.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="assets/rsi-only-xrp-trades.png" class="img-fluid figure-img"></p>
+<figcaption>XRP/USDT trade markers</figcaption>
+</figure>
+</div>
+<p>The best pair was <code>XRP/USDT</code>, so the first plot focuses on its four trades. Green triangles are entries, red triangles are exits, and labels show trade profit.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="assets/rsi-only-xrp-rsi.png" class="img-fluid figure-img"></p>
+<figcaption>XRP/USDT RSI thresholds</figcaption>
+</figure>
+</div>
+<p>The RSI plot shows why these trades fired: entries happen when RSI(22) crosses below the lower boundary <code>18</code>, and exits happen when RSI(22) crosses above the upper boundary <code>57</code>.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="assets/rsi-only-all-trades-timeline.png" class="img-fluid figure-img"></p>
+<figcaption>All trade intervals</figcaption>
+</figure>
+</div>
+<p>The timeline plot shows all backtest trades as buy-to-sell intervals. Green intervals are profitable trades, red intervals are losing trades.</p>
+<p>The legacy command-line plotting path also exists:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>uv run freqtrade plot-dataframe <span class="op">--</span>userdir user_data <span class="op">--</span>config user_data<span class="op">/</span>strategies<span class="op">/</span>rsi_only<span class="op">/</span>config_rsi_only_1h<span class="op">.</span><span class="fu">json</span> <span class="op">--</span>strategy RsiOnlyStrategy <span class="op">--</span>timeframe 1h <span class="op">--</span>pairs XRP<span class="op">/</span>USDT <span class="op">--</span>export-filename user_data<span class="op">/</span>backtest_results<span class="op">/</span>backtest-result-2026-07-14_22-02-06<span class="op">.</span><span class="fu">zip</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Freqtrade documentation currently recommends FreqUI over <code>plot-dataframe</code> for plotting, because the CLI plotting commands are in maintenance mode.</p>
+</section>
+<section id="in-sample-bias-warning" class="level2">
+<h2 class="anchored" data-anchor-id="in-sample-bias-warning">In-sample bias warning</h2>
+<p>The <code>+60.71%</code> result below is useful as a first proof-of-concept, but it is likely optimistic. The same timerange was used for Hyperopt and for the final backtest, so the strategy was trained and evaluated on the same candles. This can overfit RSI boundaries and period selection to historical noise. Treat the 1h result as an in-sample research result, not as evidence that the strategy is robust out-of-sample.</p>
+</section>
+<section id="backtest-results" class="level2">
+<h2 class="anchored" data-anchor-id="backtest-results">Backtest results</h2>
+<p>The final backtest automatically loaded <code>RsiOnlyStrategy.json</code>.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Metric</th>
+<th style="text-align: right;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Backtest period</td>
+<td style="text-align: right;">2025-01-05 04:00:00 - 2026-07-14 00:00:00</td>
+</tr>
+<tr class="even">
+<td>Starting balance</td>
+<td style="text-align: right;">100 USDT</td>
+</tr>
+<tr class="odd">
+<td>Final balance</td>
+<td style="text-align: right;">160.714 USDT</td>
+</tr>
+<tr class="even">
+<td>Absolute profit</td>
+<td style="text-align: right;">60.714 USDT</td>
+</tr>
+<tr class="odd">
+<td>Total profit</td>
+<td style="text-align: right;">60.71%</td>
+</tr>
+<tr class="even">
+<td>Market change</td>
+<td style="text-align: right;">-52.46%</td>
+</tr>
+<tr class="odd">
+<td>Trades</td>
+<td style="text-align: right;">26</td>
+</tr>
+<tr class="even">
+<td>Win / draw / loss</td>
+<td style="text-align: right;">19 / 0 / 7</td>
+</tr>
+<tr class="odd">
+<td>Win rate</td>
+<td style="text-align: right;">73.1%</td>
+</tr>
+<tr class="even">
+<td>Average profit per trade</td>
+<td style="text-align: right;">5.79%</td>
+</tr>
+<tr class="odd">
+<td>Average duration</td>
+<td style="text-align: right;">3 days, 2:18:00</td>
+</tr>
+<tr class="even">
+<td>Profit factor</td>
+<td style="text-align: right;">4.60</td>
+</tr>
+<tr class="odd">
+<td>Sharpe</td>
+<td style="text-align: right;">0.57</td>
+</tr>
+<tr class="even">
+<td>Sortino</td>
+<td style="text-align: right;">0.99</td>
+</tr>
+<tr class="odd">
+<td>Calmar</td>
+<td style="text-align: right;">30.76</td>
+</tr>
+<tr class="even">
+<td>SQN</td>
+<td style="text-align: right;">3.20</td>
+</tr>
+<tr class="odd">
+<td>Max account drawdown</td>
+<td style="text-align: right;">11.516 USDT / 6.81%</td>
+</tr>
+<tr class="even">
+<td>Drawdown duration</td>
+<td style="text-align: right;">119 days, 14:00:00</td>
+</tr>
+<tr class="odd">
+<td>Best pair</td>
+<td style="text-align: right;">XRP/USDT, 20.05%</td>
+</tr>
+<tr class="even">
+<td>Worst pair</td>
+<td style="text-align: right;">BTC/USDT, -4.02%</td>
+</tr>
+</tbody>
+</table>
+<p>Per-pair result:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Pair</th>
+<th style="text-align: right;">Trades</th>
+<th style="text-align: right;">Profit, USDT</th>
+<th style="text-align: right;">Profit</th>
+<th style="text-align: right;">Win rate</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>XRP/USDT</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">20.055</td>
+<td style="text-align: right;">20.05%</td>
+<td style="text-align: right;">100.0%</td>
+</tr>
+<tr class="even">
+<td>DOGE/USDT</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">16.631</td>
+<td style="text-align: right;">16.63%</td>
+<td style="text-align: right;">75.0%</td>
+</tr>
+<tr class="odd">
+<td>ADA/USDT</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">12.009</td>
+<td style="text-align: right;">12.01%</td>
+<td style="text-align: right;">100.0%</td>
+</tr>
+<tr class="even">
+<td>TRX/USDT</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">7.826</td>
+<td style="text-align: right;">7.83%</td>
+<td style="text-align: right;">75.0%</td>
+</tr>
+<tr class="odd">
+<td>SOL/USDT</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3.494</td>
+<td style="text-align: right;">3.49%</td>
+<td style="text-align: right;">100.0%</td>
+</tr>
+<tr class="even">
+<td>BNB/USDT</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">3.227</td>
+<td style="text-align: right;">3.23%</td>
+<td style="text-align: right;">75.0%</td>
+</tr>
+<tr class="odd">
+<td>ETH/USDT</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">1.497</td>
+<td style="text-align: right;">1.50%</td>
+<td style="text-align: right;">40.0%</td>
+</tr>
+<tr class="even">
+<td>LINK/USDT</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.00%</td>
+<td style="text-align: right;">0.0%</td>
+</tr>
+<tr class="odd">
+<td>AVAX/USDT</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.00%</td>
+<td style="text-align: right;">0.0%</td>
+</tr>
+<tr class="even">
+<td>BTC/USDT</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">-4.023</td>
+<td style="text-align: right;">-4.02%</td>
+<td style="text-align: right;">0.0%</td>
+</tr>
+</tbody>
+</table>
+<p>Monthly breakdown:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Month</th>
+<th style="text-align: right;">Trades</th>
+<th style="text-align: right;">Profit, USDT</th>
+<th style="text-align: right;">Win / loss</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>2025-01</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">4.965</td>
+<td style="text-align: right;">2 / 0</td>
+</tr>
+<tr class="even">
+<td>2025-02</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">10.345</td>
+<td style="text-align: right;">3 / 0</td>
+</tr>
+<tr class="odd">
+<td>2025-03</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0 / 0</td>
+</tr>
+<tr class="even">
+<td>2025-04</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">23.482</td>
+<td style="text-align: right;">3 / 0</td>
+</tr>
+<tr class="odd">
+<td>2025-05</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0 / 0</td>
+</tr>
+<tr class="even">
+<td>2025-06</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1.905</td>
+<td style="text-align: right;">1 / 0</td>
+</tr>
+<tr class="odd">
+<td>2025-07</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0 / 0</td>
+</tr>
+<tr class="even">
+<td>2025-08</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0 / 0</td>
+</tr>
+<tr class="odd">
+<td>2025-09</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2.380</td>
+<td style="text-align: right;">1 / 1</td>
+</tr>
+<tr class="even">
+<td>2025-10</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">12.018</td>
+<td style="text-align: right;">3 / 0</td>
+</tr>
+<tr class="odd">
+<td>2025-11</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">-2.485</td>
+<td style="text-align: right;">0 / 1</td>
+</tr>
+<tr class="even">
+<td>2025-12</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0 / 0</td>
+</tr>
+<tr class="odd">
+<td>2026-01</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2.477</td>
+<td style="text-align: right;">1 / 2</td>
+</tr>
+<tr class="even">
+<td>2026-02</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">7.444</td>
+<td style="text-align: right;">4 / 1</td>
+</tr>
+<tr class="odd">
+<td>2026-03</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0 / 0</td>
+</tr>
+<tr class="even">
+<td>2026-04</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0 / 0</td>
+</tr>
+<tr class="odd">
+<td>2026-05</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">-0.811</td>
+<td style="text-align: right;">0 / 1</td>
+</tr>
+<tr class="even">
+<td>2026-06</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">-1.005</td>
+<td style="text-align: right;">1 / 1</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="m-traintest-extension" class="level2">
+<h2 class="anchored" data-anchor-id="m-traintest-extension">5m train/test extension</h2>
+<p>To reduce the in-sample bias, the next experiment uses <code>5m</code> candles and a fixed train/test split:</p>
+<ul>
+<li>exchange: Binance spot;</li>
+<li>timeframe: <code>5m</code>;</li>
+<li>pairs: the same 10 USDT pairs used by the 1h experiment;</li>
+<li>data range: <code>2025-01-01</code> - <code>2026-07-14</code>;</li>
+<li>train: <code>2025-01-01</code> - <code>2025-12-31</code>;</li>
+<li>test: <code>2026-01-01</code> - <code>2026-07-14</code>;</li>
+<li><code>max_open_trades = 10</code>;</li>
+<li>test parameters are not reoptimized.</li>
+</ul>
+<p>The new files are:</p>
+<ul>
+<li><code>user_data/strategies/rsi_only_5m/config_rsi_only_5m.json</code>;</li>
+<li><code>user_data/strategies/rsi_only_risk_managed_5m/config_rsi_risk_managed_5m.json</code>;</li>
+<li><code>user_data/strategies/rsi_only_5m/RsiOnly5mStrategy.py</code>;</li>
+<li><code>user_data/strategies/rsi_only_risk_managed_5m/RsiOnlyRiskManaged5mStrategy.py</code>.</li>
+</ul>
+<p>The risk-managed version still uses RSI as the only market indicator, but it is not a strict RSI-only exit system anymore. It adds Freqtrade risk controls: optimized ROI, stoploss, trailing stop, and protections (<code>CooldownPeriod</code>, <code>MaxDrawdown</code>, <code>LowProfitPairs</code>). Final risk-managed backtests were run with <code>--enable-protections</code>.</p>
+<p>Downloaded <code>5m</code> data contains 10 <code>*-5m.feather</code> files with 160,999 candles per pair, from <code>2025-01-01 00:00:00+00:00</code> to <code>2026-07-14 00:30:00+00:00</code>.</p>
+<section id="m-reproduction-commands" class="level3">
+<h3 class="anchored" data-anchor-id="m-reproduction-commands">5m reproduction commands</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>uv run freqtrade download-data <span class="op">--</span>userdir user_data <span class="op">--</span>config user_data<span class="op">/</span>strategies<span class="op">/</span>rsi_only_risk_managed_5m<span class="op">/</span>config_rsi_risk_managed_5m<span class="op">.</span><span class="fu">json</span> <span class="op">--</span>timeframes 5m <span class="op">--</span>timerange <span class="dv">20250101</span><span class="op">-</span><span class="dv">20260714</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Baseline RSI-only Hyperopt on train:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>uv run freqtrade hyperopt <span class="op">--</span>userdir user_data <span class="op">--</span>config user_data<span class="op">/</span>strategies<span class="op">/</span>rsi_only_5m<span class="op">/</span>config_rsi_only_5m<span class="op">.</span><span class="fu">json</span> <span class="op">--</span>strategy RsiOnly5mStrategy <span class="op">--</span>timeframe 5m <span class="op">--</span>timerange <span class="dv">20250101</span><span class="op">-</span><span class="dv">20260101</span> <span class="op">--</span>spaces buy sell <span class="op">--</span>hyperopt-loss ProfitDrawDownHyperOptLoss <span class="op">-</span>e <span class="dv">300</span> <span class="op">--</span>random-state <span class="dv">42</span> <span class="op">--</span>min-trades <span class="dv">50</span> <span class="op">-</span>j <span class="dv">8</span> <span class="op">--</span>analyze-per-epoch</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Risk-managed Hyperopt on train:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>uv run freqtrade hyperopt <span class="op">--</span>userdir user_data <span class="op">--</span>config user_data<span class="op">/</span>strategies<span class="op">/</span>rsi_only_risk_managed_5m<span class="op">/</span>config_rsi_risk_managed_5m<span class="op">.</span><span class="fu">json</span> <span class="op">--</span>strategy RsiOnlyRiskManaged5mStrategy <span class="op">--</span>timeframe 5m <span class="op">--</span>timerange <span class="dv">20250101</span><span class="op">-</span><span class="dv">20260101</span> <span class="op">--</span>spaces buy sell roi stoploss trailing protection <span class="op">--</span>hyperopt-loss ProfitDrawDownHyperOptLoss <span class="op">-</span>e <span class="dv">300</span> <span class="op">--</span>random-state <span class="dv">42</span> <span class="op">--</span>min-trades <span class="dv">50</span> <span class="op">-</span>j <span class="dv">8</span> <span class="op">--</span>analyze-per-epoch</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The baseline run completed all 300 epochs. The risk-managed search hit Windows resource/time limits after saving 41 epochs, so the risk-managed result should be treated as a partial pilot optimization, not as a fully comparable 300-epoch search.</p>
+<p>Backtests:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>uv run freqtrade backtesting <span class="op">--</span>userdir user_data <span class="op">--</span>config user_data<span class="op">/</span>strategies<span class="op">/</span>rsi_only_5m<span class="op">/</span>config_rsi_only_5m<span class="op">.</span><span class="fu">json</span> <span class="op">--</span>strategy RsiOnly5mStrategy <span class="op">--</span>timeframe 5m <span class="op">--</span>timerange <span class="dv">20250101</span><span class="op">-</span><span class="dv">20260101</span> <span class="op">--</span>export trades <span class="op">--</span>breakdown month <span class="op">--</span>cache none <span class="op">--</span>notes rsi_5m_baseline_train</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>uv run freqtrade backtesting <span class="op">--</span>userdir user_data <span class="op">--</span>config user_data<span class="op">/</span>strategies<span class="op">/</span>rsi_only_5m<span class="op">/</span>config_rsi_only_5m<span class="op">.</span><span class="fu">json</span> <span class="op">--</span>strategy RsiOnly5mStrategy <span class="op">--</span>timeframe 5m <span class="op">--</span>timerange <span class="dv">20260101</span><span class="op">-</span><span class="dv">20260714</span> <span class="op">--</span>export trades <span class="op">--</span>breakdown month <span class="op">--</span>cache none <span class="op">--</span>notes rsi_5m_baseline_test</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>uv run freqtrade backtesting <span class="op">--</span>userdir user_data <span class="op">--</span>config user_data<span class="op">/</span>strategies<span class="op">/</span>rsi_only_risk_managed_5m<span class="op">/</span>config_rsi_risk_managed_5m<span class="op">.</span><span class="fu">json</span> <span class="op">--</span>strategy RsiOnlyRiskManaged5mStrategy <span class="op">--</span>timeframe 5m <span class="op">--</span>timerange <span class="dv">20250101</span><span class="op">-</span><span class="dv">20260101</span> <span class="op">--</span>export trades <span class="op">--</span>breakdown month <span class="op">--</span>cache none <span class="op">--</span>enable-protections <span class="op">--</span>notes rsi_5m_risk_train</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>uv run freqtrade backtesting <span class="op">--</span>userdir user_data <span class="op">--</span>config user_data<span class="op">/</span>strategies<span class="op">/</span>rsi_only_risk_managed_5m<span class="op">/</span>config_rsi_risk_managed_5m<span class="op">.</span><span class="fu">json</span> <span class="op">--</span>strategy RsiOnlyRiskManaged5mStrategy <span class="op">--</span>timeframe 5m <span class="op">--</span>timerange <span class="dv">20260101</span><span class="op">-</span><span class="dv">20260714</span> <span class="op">--</span>export trades <span class="op">--</span>breakdown month <span class="op">--</span>cache none <span class="op">--</span>enable-protections <span class="op">--</span>notes rsi_5m_risk_test</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="m-optimized-parameters" class="level3">
+<h3 class="anchored" data-anchor-id="m-optimized-parameters">5m optimized parameters</h3>
+<p>Baseline RSI-only, trained on 2025:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th style="text-align: right;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>buy_rsi_period</code></td>
+<td style="text-align: right;">19</td>
+</tr>
+<tr class="even">
+<td><code>buy_rsi_lower</code></td>
+<td style="text-align: right;">13</td>
+</tr>
+<tr class="odd">
+<td><code>sell_rsi_upper</code></td>
+<td style="text-align: right;">79</td>
+</tr>
+<tr class="even">
+<td><code>minimal_roi</code></td>
+<td style="text-align: right;"><code>{"0": 100}</code></td>
+</tr>
+<tr class="odd">
+<td><code>stoploss</code></td>
+<td style="text-align: right;"><code>-0.99</code></td>
+</tr>
+<tr class="even">
+<td><code>max_open_trades</code></td>
+<td style="text-align: right;">10</td>
+</tr>
+</tbody>
+</table>
+<p>Risk-managed RSI, partial 41-epoch pilot trained on 2025:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th style="text-align: right;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>buy_rsi_period</code></td>
+<td style="text-align: right;">22</td>
+</tr>
+<tr class="even">
+<td><code>buy_rsi_lower</code></td>
+<td style="text-align: right;">16</td>
+</tr>
+<tr class="odd">
+<td><code>sell_rsi_upper</code></td>
+<td style="text-align: right;">69</td>
+</tr>
+<tr class="even">
+<td><code>minimal_roi</code></td>
+<td style="text-align: right;"><code>{"0": 0.161, "30": 0.029, "83": 0.015, "148": 0}</code></td>
+</tr>
+<tr class="odd">
+<td><code>stoploss</code></td>
+<td style="text-align: right;"><code>-0.342</code></td>
+</tr>
+<tr class="even">
+<td><code>trailing_stop</code></td>
+<td style="text-align: right;"><code>true</code></td>
+</tr>
+<tr class="odd">
+<td><code>trailing_stop_positive</code></td>
+<td style="text-align: right;"><code>0.184</code></td>
+</tr>
+<tr class="even">
+<td><code>trailing_stop_positive_offset</code></td>
+<td style="text-align: right;"><code>0.186</code></td>
+</tr>
+<tr class="odd">
+<td><code>protection_cooldown_stop_duration</code></td>
+<td style="text-align: right;">20</td>
+</tr>
+<tr class="even">
+<td><code>protection_max_allowed_drawdown</code></td>
+<td style="text-align: right;">0.089</td>
+</tr>
+<tr class="odd">
+<td><code>protection_max_drawdown_stop_duration</code></td>
+<td style="text-align: right;">215</td>
+</tr>
+<tr class="even">
+<td><code>protection_low_profit_required_profit</code></td>
+<td style="text-align: right;">0.009</td>
+</tr>
+<tr class="odd">
+<td><code>protection_low_profit_stop_duration</code></td>
+<td style="text-align: right;">36</td>
+</tr>
+<tr class="even">
+<td><code>max_open_trades</code></td>
+<td style="text-align: right;">10</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="m-baseline-rsi-only" class="level3">
+<h3 class="anchored" data-anchor-id="m-baseline-rsi-only">5m baseline RSI-only</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 8%">
+<col style="width: 8%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Split</th>
+<th style="text-align: right;">Trades</th>
+<th style="text-align: right;">Profit</th>
+<th style="text-align: right;">Max drawdown</th>
+<th style="text-align: right;">Win rate</th>
+<th style="text-align: right;">Profit factor</th>
+<th style="text-align: right;">Sharpe</th>
+<th style="text-align: right;">Sortino</th>
+<th>Best pair</th>
+<th>Worst pair</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Train</td>
+<td style="text-align: right;">57</td>
+<td style="text-align: right;">53.169 USDT / 53.17%</td>
+<td style="text-align: right;">2.276 USDT / 2.07%</td>
+<td style="text-align: right;">66.7%</td>
+<td style="text-align: right;">10.06</td>
+<td style="text-align: right;">1.22</td>
+<td style="text-align: right;">8.57</td>
+<td>ADA/USDT, 9.18%</td>
+<td>SOL/USDT, 1.58%</td>
+</tr>
+<tr class="even">
+<td>Test</td>
+<td style="text-align: right;">57</td>
+<td style="text-align: right;">-12.314 USDT / -12.31%</td>
+<td style="text-align: right;">23.712 USDT / 23.61%</td>
+<td style="text-align: right;">71.9%</td>
+<td style="text-align: right;">0.51</td>
+<td style="text-align: right;">-1.04</td>
+<td style="text-align: right;">-0.82</td>
+<td>XRP/USDT, 1.26%</td>
+<td>SOL/USDT, -2.47%</td>
+</tr>
+</tbody>
+</table>
+<p>The baseline overfit signal is clear: strong train performance did not survive the untouched 2026 test window. The win rate stayed high, but the few losing trades were large enough to dominate total PnL.</p>
+</section>
+<section id="m-risk-managed-rsi" class="level3">
+<h3 class="anchored" data-anchor-id="m-risk-managed-rsi">5m risk-managed RSI</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 8%">
+<col style="width: 8%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Split</th>
+<th style="text-align: right;">Trades</th>
+<th style="text-align: right;">Profit</th>
+<th style="text-align: right;">Max drawdown</th>
+<th style="text-align: right;">Win rate</th>
+<th style="text-align: right;">Profit factor</th>
+<th style="text-align: right;">Sharpe</th>
+<th style="text-align: right;">Sortino</th>
+<th>Best pair</th>
+<th>Worst pair</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Train</td>
+<td style="text-align: right;">94</td>
+<td style="text-align: right;">-1.212 USDT / -1.21%</td>
+<td style="text-align: right;">8.687 USDT / 8.54%</td>
+<td style="text-align: right;">60.6%</td>
+<td style="text-align: right;">0.91</td>
+<td style="text-align: right;">-0.10</td>
+<td style="text-align: right;">-0.08</td>
+<td>BNB/USDT, 1.60%</td>
+<td>DOGE/USDT, -3.49%</td>
+</tr>
+<tr class="even">
+<td>Test</td>
+<td style="text-align: right;">89</td>
+<td style="text-align: right;">-8.936 USDT / -8.94%</td>
+<td style="text-align: right;">10.291 USDT / 10.29%</td>
+<td style="text-align: right;">57.3%</td>
+<td style="text-align: right;">0.22</td>
+<td style="text-align: right;">-1.99</td>
+<td style="text-align: right;">-1.43</td>
+<td>ADA/USDT, 0.54%</td>
+<td>AVAX/USDT, -3.08%</td>
+</tr>
+</tbody>
+</table>
+<p>The risk-managed test lost less money and had a smaller account drawdown than the baseline test, but it also had a worse profit factor and worse Sharpe / Sortino. Because the risk-managed Hyperopt was partial, this is best read as a directional robustness check rather than a final verdict on the risk controls.</p>
+</section>
+<section id="m-test-comparison" class="level3">
+<h3 class="anchored" data-anchor-id="m-test-comparison">5m test comparison</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Metric</th>
+<th style="text-align: right;">Baseline RSI-only</th>
+<th style="text-align: right;">Risk-managed RSI</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Test profit</td>
+<td style="text-align: right;">-12.314 USDT / -12.31%</td>
+<td style="text-align: right;">-8.936 USDT / -8.94%</td>
+</tr>
+<tr class="even">
+<td>Max account drawdown</td>
+<td style="text-align: right;">23.712 USDT / 23.61%</td>
+<td style="text-align: right;">10.291 USDT / 10.29%</td>
+</tr>
+<tr class="odd">
+<td>Trades</td>
+<td style="text-align: right;">57</td>
+<td style="text-align: right;">89</td>
+</tr>
+<tr class="even">
+<td>Win rate</td>
+<td style="text-align: right;">71.9%</td>
+<td style="text-align: right;">57.3%</td>
+</tr>
+<tr class="odd">
+<td>Profit factor</td>
+<td style="text-align: right;">0.51</td>
+<td style="text-align: right;">0.22</td>
+</tr>
+<tr class="even">
+<td>Sharpe</td>
+<td style="text-align: right;">-1.04</td>
+<td style="text-align: right;">-1.99</td>
+</tr>
+<tr class="odd">
+<td>Sortino</td>
+<td style="text-align: right;">-0.82</td>
+<td style="text-align: right;">-1.43</td>
+</tr>
+<tr class="even">
+<td>Market change</td>
+<td style="text-align: right;">-34.67%</td>
+<td style="text-align: right;">-34.67%</td>
+</tr>
+</tbody>
+</table>
+<p>Monthly test breakdown:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 21%">
+<col style="width: 21%">
+<col style="width: 21%">
+<col style="width: 21%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Month</th>
+<th style="text-align: right;">Baseline trades</th>
+<th style="text-align: right;">Baseline profit, USDT</th>
+<th style="text-align: right;">Risk trades</th>
+<th style="text-align: right;">Risk profit, USDT</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>2026-01</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">-0.043</td>
+<td style="text-align: right;">18</td>
+<td style="text-align: right;">-2.057</td>
+</tr>
+<tr class="even">
+<td>2026-02</td>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;">-22.843</td>
+<td style="text-align: right;">22</td>
+<td style="text-align: right;">-7.840</td>
+</tr>
+<tr class="odd">
+<td>2026-03</td>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;">3.887</td>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;">-0.201</td>
+</tr>
+<tr class="even">
+<td>2026-04</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">1.216</td>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;">-0.145</td>
+</tr>
+<tr class="odd">
+<td>2026-05</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">1.144</td>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;">0.068</td>
+</tr>
+<tr class="even">
+<td>2026-06</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">1.426</td>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;">1.306</td>
+</tr>
+<tr class="odd">
+<td>2026-07</td>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;">2.899</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">-0.067</td>
+</tr>
+</tbody>
+</table>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="assets/rsi-5m-equity-baseline-vs-risk-test.png" class="img-fluid figure-img"></p>
+<figcaption>5m test equity curve</figcaption>
+</figure>
+</div>
+<p>The equity curve shows the main difference: risk controls reduced the February capital drop, while the baseline recovered more later in the test window but still finished lower overall.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="assets/rsi-5m-trade-timeline-test.png" class="img-fluid figure-img"></p>
+<figcaption>5m test trade timeline</figcaption>
+</figure>
+</div>
+<p>The timeline shows that the risk-managed version trades more frequently and closes many positions quickly through ROI/trailing/protection-influenced behavior. The baseline trades less often but holds some losing February positions longer.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="assets/rsi-5m-risk-best-pair-trades-test.png" class="img-fluid figure-img"></p>
+<figcaption>Risk-managed best test pair markers</figcaption>
+</figure>
+</div>
+<p>The best risk-managed test pair was <code>ADA/USDT</code>, but even that pair only contributed <code>+0.537 USDT</code> (<code>+0.54%</code>). This reinforces that the out-of-sample edge was weak in the 2026 test window.</p>
+</section>
+<section id="m-conclusion" class="level3">
+<h3 class="anchored" data-anchor-id="m-conclusion">5m conclusion</h3>
+<p>The train/test split changes the interpretation materially. The original 1h result and the 5m baseline train result both look attractive in-sample, but the untouched 2026 test window is negative. The risk-managed variant reduced test drawdown from <code>23.61%</code> to <code>10.29%</code> and improved absolute test PnL from <code>-12.31%</code> to <code>-8.94%</code>, but it did not produce a profitable or statistically convincing strategy. The next research step should be a proper walk-forward optimization with multiple rolling windows, not a single train/test split.</p>
+</section>
+<section id="stoploss--5-sensitivity-check" class="level3">
+<h3 class="anchored" data-anchor-id="stoploss--5-sensitivity-check">Stoploss -5% sensitivity check</h3>
+<p>After the train/test experiment, a fixed <code>5%</code> stoploss was checked against the current optimized parameters. In Freqtrade this is configured as <code>stoploss = -0.05</code>; a positive <code>0.05</code> is not the strategy value.</p>
+<p>This was a post-hoc sensitivity check, not a fresh Hyperopt run. The test used a temporary config-level stoploss override, which Freqtrade applies after loading strategy parameters from <code>*.json</code>.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 21%">
+<col style="width: 28%">
+<col style="width: 28%">
+<col style="width: 21%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Strategy / window</th>
+<th style="text-align: right;">Original result</th>
+<th style="text-align: right;">With <code>stoploss = -0.05</code></th>
+<th>Change</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>RsiOnly5mStrategy</code>, 2026 test</td>
+<td style="text-align: right;">-12.31%, DD 23.61%</td>
+<td style="text-align: right;">+4.93%, DD 8.00%</td>
+<td>Better</td>
+</tr>
+<tr class="even">
+<td><code>RsiOnlyRiskManaged5mStrategy</code>, 2026 test</td>
+<td style="text-align: right;">-8.94%, DD 10.29%</td>
+<td style="text-align: right;">-5.01%, DD 6.41%</td>
+<td>Smaller loss, smaller drawdown</td>
+</tr>
+<tr class="odd">
+<td><code>RsiOnlyStrategy</code>, 1h in-sample full period</td>
+<td style="text-align: right;">+60.71%, DD 6.81%</td>
+<td style="text-align: right;">+3.08%, DD 26.30%</td>
+<td>Worse</td>
+</tr>
+</tbody>
+</table>
+<p>Detailed <code>5m</code> test metrics:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Strategy</th>
+<th style="text-align: right;">Trades</th>
+<th style="text-align: right;">Profit</th>
+<th style="text-align: right;">Max drawdown</th>
+<th style="text-align: right;">Win rate</th>
+<th style="text-align: right;">Profit factor</th>
+<th style="text-align: right;">Sharpe</th>
+<th style="text-align: right;">Sortino</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Baseline RSI-only, original</td>
+<td style="text-align: right;">57</td>
+<td style="text-align: right;">-12.314 USDT / -12.31%</td>
+<td style="text-align: right;">23.712 USDT / 23.61%</td>
+<td style="text-align: right;">71.9%</td>
+<td style="text-align: right;">0.51</td>
+<td style="text-align: right;">-1.04</td>
+<td style="text-align: right;">-0.82</td>
+</tr>
+<tr class="even">
+<td>Baseline RSI-only, <code>-5%</code> stoploss</td>
+<td style="text-align: right;">69</td>
+<td style="text-align: right;">4.934 USDT / 4.93%</td>
+<td style="text-align: right;">8.004 USDT / 8.00%</td>
+<td style="text-align: right;">63.8%</td>
+<td style="text-align: right;">1.46</td>
+<td style="text-align: right;">1.07</td>
+<td style="text-align: right;">3.07</td>
+</tr>
+<tr class="odd">
+<td>Risk-managed RSI, original</td>
+<td style="text-align: right;">89</td>
+<td style="text-align: right;">-8.936 USDT / -8.94%</td>
+<td style="text-align: right;">10.291 USDT / 10.29%</td>
+<td style="text-align: right;">57.3%</td>
+<td style="text-align: right;">0.22</td>
+<td style="text-align: right;">-1.99</td>
+<td style="text-align: right;">-1.43</td>
+</tr>
+<tr class="even">
+<td>Risk-managed RSI, <code>-5%</code> stoploss</td>
+<td style="text-align: right;">90</td>
+<td style="text-align: right;">-5.006 USDT / -5.01%</td>
+<td style="text-align: right;">6.413 USDT / 6.41%</td>
+<td style="text-align: right;">53.3%</td>
+<td style="text-align: right;">0.34</td>
+<td style="text-align: right;">-2.44</td>
+<td style="text-align: right;">-2.17</td>
+</tr>
+</tbody>
+</table>
+<p>The fixed <code>-5%</code> stoploss is promising for the <code>5m</code> baseline because it turns the 2026 test from negative to positive and cuts drawdown sharply. However, it does not transfer cleanly to the 1h strategy, and the risk-managed strategy remains negative. Since this check was made after seeing the test result, it also starts to use the test set as a design signal. The next defensible experiment is to add <code>stoploss</code> to Hyperopt on the train window only, then evaluate the selected stoploss on a fresh untouched test window or through rolling walk-forward splits.</p>
+<p>Artifacts from this check:</p>
+<ul>
+<li><code>user_data/backtest_results/backtest-result-2026-07-15_12-11-46.zip</code>: <code>RsiOnly5mStrategy</code>, 2026 test, <code>stoploss = -0.05</code>;</li>
+<li><code>user_data/backtest_results/backtest-result-2026-07-15_12-12-28.zip</code>: <code>RsiOnlyRiskManaged5mStrategy</code>, 2026 test, <code>stoploss = -0.05</code>;</li>
+<li><code>user_data/backtest_results/backtest-result-2026-07-15_12-13-52.zip</code>: <code>RsiOnlyStrategy</code>, 1h full period, <code>stoploss = -0.05</code>.</li>
+</ul>
+</section>
+</section>
+<section id="notes-and-limitations" class="level2">
+<h2 class="anchored" data-anchor-id="notes-and-limitations">Notes and limitations</h2>
+<p>The optimized strategy is very selective: only 26 trades over about 554 backtest days. That selectivity is probably why drawdown looks controlled, but it also means the estimate is fragile.</p>
+<p>This is an in-sample Hyperopt plus final backtest on the same timerange. The numbers are useful for checking whether the RSI-only idea is worth deeper research, but they are not evidence of live robustness. A better next experiment is a walk-forward split: optimize on an earlier window, then test untouched data from a later window.</p>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/04Maksimka\.github\.io\/TimeAnalysis-Research\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "RSI-only strategy: Freqtrade Hyperopt"</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> "Long-only mean-reversion strategy based only on RSI, optimized with Freqtrade Hyperopt."</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> "TimeAnalysis Team"</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2026-07-14"</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="an">categories:</span><span class="co"> ["Freqtrade", "Backtesting", "Strategies", "RSI"]</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="an">image:</span><span class="co"> ../../assets/model-backtesting-pipeline-cover-pencil.png</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="fu">## Goal</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>This experiment builds the smallest useful RSI strategy for Freqtrade: only one</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>indicator, no trend filters, no extra guards, and no ML. The strategy is</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>long-only and mean-reverting:</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>enter long when RSI crosses below the lower RSI boundary;</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>exit long when RSI crosses above the upper RSI boundary;</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>keep ROI effectively disabled with <span class="in">`minimal_roi = {"0": 100}`</span>;</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>keep an emergency-wide stoploss at <span class="in">`-0.99`</span>, so normal exits are RSI exits.</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>The implementation lives in <span class="in">`user_data/strategies/rsi_only/RsiOnlyStrategy.py`</span>, with a</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>dedicated config in <span class="in">`user_data/strategies/rsi_only/config_rsi_only_1h.json`</span>.</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a><span class="fu">## Can Freqtrade optimize RSI parameters?</span></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>Yes. Freqtrade can optimize RSI boundaries and RSI period internally with</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>Hyperopt. The strategy exposes the parameters as <span class="in">`IntParameter`</span>:</span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Parameter <span class="pp">|</span> Hyperopt space <span class="pp">|</span> Range <span class="pp">|</span> Best value <span class="pp">|</span></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|---:|---:|</span></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`buy_rsi_period`</span> <span class="pp">|</span> <span class="in">`buy`</span> <span class="pp">|</span> 7-30 <span class="pp">|</span> 22 <span class="pp">|</span></span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`buy_rsi_lower`</span> <span class="pp">|</span> <span class="in">`buy`</span> <span class="pp">|</span> 10-45 <span class="pp">|</span> 18 <span class="pp">|</span></span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`sell_rsi_upper`</span> <span class="pp">|</span> <span class="in">`sell`</span> <span class="pp">|</span> 55-90 <span class="pp">|</span> 57 <span class="pp">|</span></span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>The period is the subtle part: because RSI period changes the indicator itself,</span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>the strategy calculates RSI columns with <span class="in">`self.buy_rsi_period.range`</span>. This is a</span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>standard Freqtrade pattern for optimizing indicator periods without recalculating</span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>the whole dataframe incorrectly for every epoch.</span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a><span class="fu">## Reproduction</span></span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>The commands below were run from <span class="in">`C:\WorkPrograms\TimeAnalysis`</span>.</span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a><span class="in">```powershell</span></span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a><span class="in">uv sync --dev</span></span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>Freqtrade Hyperopt needs <span class="in">`optuna`</span>, <span class="in">`cmaes`</span>, and <span class="in">`filelock`</span> in addition to the</span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>normal bot dependencies. These are now tracked in <span class="in">`pyproject.toml`</span>, so a normal</span>
+<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a><span class="in">`uv sync --dev`</span> is enough.</span>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a><span class="in">```powershell</span></span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a><span class="in">uv run freqtrade list-strategies --userdir user_data</span></span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a><span class="in">.\.venv\Scripts\ruff.exe check user_data\strategies\rsi_only\RsiOnlyStrategy.py</span></span>
+<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a><span class="in">`--strategy-path user_data/strategies`</span> is intentionally omitted. With</span>
+<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a><span class="in">`--userdir user_data`</span>, Freqtrade already scans <span class="in">`user_data/strategies`</span>; passing</span>
+<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a>the same path again causes duplicate strategy entries.</span>
+<span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a><span class="in">```powershell</span></span>
+<span id="cb12-62"><a href="#cb12-62" aria-hidden="true" tabindex="-1"></a><span class="in">uv run freqtrade download-data --userdir user_data --config user_data/strategies/rsi_only/config_rsi_only_1h.json --timeframes 1h --timerange 20250101-20260714</span></span>
+<span id="cb12-63"><a href="#cb12-63" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-64"><a href="#cb12-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-65"><a href="#cb12-65" aria-hidden="true" tabindex="-1"></a>Downloaded data:</span>
+<span id="cb12-66"><a href="#cb12-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-67"><a href="#cb12-67" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>exchange: Binance spot;</span>
+<span id="cb12-68"><a href="#cb12-68" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>timeframe: <span class="in">`1h`</span>;</span>
+<span id="cb12-69"><a href="#cb12-69" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>pairs: <span class="in">`BTC/USDT`</span>, <span class="in">`ETH/USDT`</span>, <span class="in">`BNB/USDT`</span>, <span class="in">`XRP/USDT`</span>, <span class="in">`SOL/USDT`</span>,</span>
+<span id="cb12-70"><a href="#cb12-70" aria-hidden="true" tabindex="-1"></a>  <span class="in">`TRX/USDT`</span>, <span class="in">`DOGE/USDT`</span>, <span class="in">`ADA/USDT`</span>, <span class="in">`LINK/USDT`</span>, <span class="in">`AVAX/USDT`</span>;</span>
+<span id="cb12-71"><a href="#cb12-71" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>downloaded candles: 13,434 per pair.</span>
+<span id="cb12-72"><a href="#cb12-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-73"><a href="#cb12-73" aria-hidden="true" tabindex="-1"></a>Hyperopt command:</span>
+<span id="cb12-74"><a href="#cb12-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-75"><a href="#cb12-75" aria-hidden="true" tabindex="-1"></a><span class="in">```powershell</span></span>
+<span id="cb12-76"><a href="#cb12-76" aria-hidden="true" tabindex="-1"></a><span class="in">uv run freqtrade hyperopt --userdir user_data --config user_data/strategies/rsi_only/config_rsi_only_1h.json --strategy RsiOnlyStrategy --timeframe 1h --timerange 20250101-20260714 --spaces buy sell --hyperopt-loss ProfitDrawDownHyperOptLoss -e 300 --random-state 42 --min-trades 10 -j -2</span></span>
+<span id="cb12-77"><a href="#cb12-77" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-78"><a href="#cb12-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-79"><a href="#cb12-79" aria-hidden="true" tabindex="-1"></a>Best Hyperopt epoch: 277/300, objective <span class="in">`-56.89194`</span>, 26 trades, 19 wins, 7</span>
+<span id="cb12-80"><a href="#cb12-80" aria-hidden="true" tabindex="-1"></a>losses.</span>
+<span id="cb12-81"><a href="#cb12-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-82"><a href="#cb12-82" aria-hidden="true" tabindex="-1"></a>Final backtest command:</span>
+<span id="cb12-83"><a href="#cb12-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-84"><a href="#cb12-84" aria-hidden="true" tabindex="-1"></a><span class="in">```powershell</span></span>
+<span id="cb12-85"><a href="#cb12-85" aria-hidden="true" tabindex="-1"></a><span class="in">uv run freqtrade backtesting --userdir user_data --config user_data/strategies/rsi_only/config_rsi_only_1h.json --strategy RsiOnlyStrategy --timeframe 1h --timerange 20250101-20260714 --export trades --breakdown month --cache none</span></span>
+<span id="cb12-86"><a href="#cb12-86" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-87"><a href="#cb12-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-88"><a href="#cb12-88" aria-hidden="true" tabindex="-1"></a>Artifacts:</span>
+<span id="cb12-89"><a href="#cb12-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-90"><a href="#cb12-90" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hyperopt result: <span class="in">`user_data/hyperopt_results/strategy_RsiOnlyStrategy_2026-07-14_21-55-13.fthypt`</span>;</span>
+<span id="cb12-91"><a href="#cb12-91" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>exported parameters: <span class="in">`user_data/strategies/rsi_only/RsiOnlyStrategy.json`</span>;</span>
+<span id="cb12-92"><a href="#cb12-92" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>final backtest: <span class="in">`user_data/backtest_results/backtest-result-2026-07-14_22-02-06.zip`</span>.</span>
+<span id="cb12-93"><a href="#cb12-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-94"><a href="#cb12-94" aria-hidden="true" tabindex="-1"></a><span class="fu">## Visual inspection</span></span>
+<span id="cb12-95"><a href="#cb12-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-96"><a href="#cb12-96" aria-hidden="true" tabindex="-1"></a>Freqtrade has two practical ways to inspect buy and sell points.</span>
+<span id="cb12-97"><a href="#cb12-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-98"><a href="#cb12-98" aria-hidden="true" tabindex="-1"></a>The preferred interactive path is FreqUI:</span>
+<span id="cb12-99"><a href="#cb12-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-100"><a href="#cb12-100" aria-hidden="true" tabindex="-1"></a><span class="in">```powershell</span></span>
+<span id="cb12-101"><a href="#cb12-101" aria-hidden="true" tabindex="-1"></a><span class="in">uv run freqtrade webserver --userdir user_data --config user_data/strategies/rsi_only/config_rsi_only_1h.json</span></span>
+<span id="cb12-102"><a href="#cb12-102" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-103"><a href="#cb12-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-104"><a href="#cb12-104" aria-hidden="true" tabindex="-1"></a>Then open <span class="in">`http://127.0.0.1:8080`</span>, log in with the local credentials from the</span>
+<span id="cb12-105"><a href="#cb12-105" aria-hidden="true" tabindex="-1"></a>config, and use the Backtesting view. FreqUI can load previous backtest results</span>
+<span id="cb12-106"><a href="#cb12-106" aria-hidden="true" tabindex="-1"></a>from <span class="in">`user_data/backtest_results`</span>, including</span>
+<span id="cb12-107"><a href="#cb12-107" aria-hidden="true" tabindex="-1"></a><span class="in">`backtest-result-2026-07-14_22-02-06.zip`</span>. Open a pair chart from that result</span>
+<span id="cb12-108"><a href="#cb12-108" aria-hidden="true" tabindex="-1"></a>and load the strategy plot configuration. <span class="in">`RsiOnlyStrategy`</span> exposes an RSI</span>
+<span id="cb12-109"><a href="#cb12-109" aria-hidden="true" tabindex="-1"></a>subplot with <span class="in">`rsi`</span>, <span class="in">`rsi_lower`</span>, and <span class="in">`rsi_upper`</span>, so entries, exits, and RSI</span>
+<span id="cb12-110"><a href="#cb12-110" aria-hidden="true" tabindex="-1"></a>thresholds can be inspected on the same chart.</span>
+<span id="cb12-111"><a href="#cb12-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-112"><a href="#cb12-112" aria-hidden="true" tabindex="-1"></a>For the static research report, the saved backtest zip and OHLCV feather data</span>
+<span id="cb12-113"><a href="#cb12-113" aria-hidden="true" tabindex="-1"></a>were converted into PNG figures.</span>
+<span id="cb12-114"><a href="#cb12-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-115"><a href="#cb12-115" aria-hidden="true" tabindex="-1"></a><span class="al">![XRP/USDT trade markers](assets/rsi-only-xrp-trades.png)</span></span>
+<span id="cb12-116"><a href="#cb12-116" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-117"><a href="#cb12-117" aria-hidden="true" tabindex="-1"></a>The best pair was <span class="in">`XRP/USDT`</span>, so the first plot focuses on its four trades.</span>
+<span id="cb12-118"><a href="#cb12-118" aria-hidden="true" tabindex="-1"></a>Green triangles are entries, red triangles are exits, and labels show trade</span>
+<span id="cb12-119"><a href="#cb12-119" aria-hidden="true" tabindex="-1"></a>profit.</span>
+<span id="cb12-120"><a href="#cb12-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-121"><a href="#cb12-121" aria-hidden="true" tabindex="-1"></a><span class="al">![XRP/USDT RSI thresholds](assets/rsi-only-xrp-rsi.png)</span></span>
+<span id="cb12-122"><a href="#cb12-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-123"><a href="#cb12-123" aria-hidden="true" tabindex="-1"></a>The RSI plot shows why these trades fired: entries happen when RSI(22) crosses</span>
+<span id="cb12-124"><a href="#cb12-124" aria-hidden="true" tabindex="-1"></a>below the lower boundary <span class="in">`18`</span>, and exits happen when RSI(22) crosses above the</span>
+<span id="cb12-125"><a href="#cb12-125" aria-hidden="true" tabindex="-1"></a>upper boundary <span class="in">`57`</span>.</span>
+<span id="cb12-126"><a href="#cb12-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-127"><a href="#cb12-127" aria-hidden="true" tabindex="-1"></a><span class="al">![All trade intervals](assets/rsi-only-all-trades-timeline.png)</span></span>
+<span id="cb12-128"><a href="#cb12-128" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-129"><a href="#cb12-129" aria-hidden="true" tabindex="-1"></a>The timeline plot shows all backtest trades as buy-to-sell intervals. Green</span>
+<span id="cb12-130"><a href="#cb12-130" aria-hidden="true" tabindex="-1"></a>intervals are profitable trades, red intervals are losing trades.</span>
+<span id="cb12-131"><a href="#cb12-131" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-132"><a href="#cb12-132" aria-hidden="true" tabindex="-1"></a>The legacy command-line plotting path also exists:</span>
+<span id="cb12-133"><a href="#cb12-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-134"><a href="#cb12-134" aria-hidden="true" tabindex="-1"></a><span class="in">```powershell</span></span>
+<span id="cb12-135"><a href="#cb12-135" aria-hidden="true" tabindex="-1"></a><span class="in">uv run freqtrade plot-dataframe --userdir user_data --config user_data/strategies/rsi_only/config_rsi_only_1h.json --strategy RsiOnlyStrategy --timeframe 1h --pairs XRP/USDT --export-filename user_data/backtest_results/backtest-result-2026-07-14_22-02-06.zip</span></span>
+<span id="cb12-136"><a href="#cb12-136" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-137"><a href="#cb12-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-138"><a href="#cb12-138" aria-hidden="true" tabindex="-1"></a>Freqtrade documentation currently recommends FreqUI over <span class="in">`plot-dataframe`</span> for</span>
+<span id="cb12-139"><a href="#cb12-139" aria-hidden="true" tabindex="-1"></a>plotting, because the CLI plotting commands are in maintenance mode.</span>
+<span id="cb12-140"><a href="#cb12-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-141"><a href="#cb12-141" aria-hidden="true" tabindex="-1"></a><span class="fu">## In-sample bias warning</span></span>
+<span id="cb12-142"><a href="#cb12-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-143"><a href="#cb12-143" aria-hidden="true" tabindex="-1"></a>The <span class="in">`+60.71%`</span> result below is useful as a first proof-of-concept, but it is</span>
+<span id="cb12-144"><a href="#cb12-144" aria-hidden="true" tabindex="-1"></a>likely optimistic. The same timerange was used for Hyperopt and for the final</span>
+<span id="cb12-145"><a href="#cb12-145" aria-hidden="true" tabindex="-1"></a>backtest, so the strategy was trained and evaluated on the same candles. This</span>
+<span id="cb12-146"><a href="#cb12-146" aria-hidden="true" tabindex="-1"></a>can overfit RSI boundaries and period selection to historical noise. Treat the</span>
+<span id="cb12-147"><a href="#cb12-147" aria-hidden="true" tabindex="-1"></a>1h result as an in-sample research result, not as evidence that the strategy is</span>
+<span id="cb12-148"><a href="#cb12-148" aria-hidden="true" tabindex="-1"></a>robust out-of-sample.</span>
+<span id="cb12-149"><a href="#cb12-149" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-150"><a href="#cb12-150" aria-hidden="true" tabindex="-1"></a><span class="fu">## Backtest results</span></span>
+<span id="cb12-151"><a href="#cb12-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-152"><a href="#cb12-152" aria-hidden="true" tabindex="-1"></a>The final backtest automatically loaded <span class="in">`RsiOnlyStrategy.json`</span>.</span>
+<span id="cb12-153"><a href="#cb12-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-154"><a href="#cb12-154" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Metric <span class="pp">|</span> Value <span class="pp">|</span></span>
+<span id="cb12-155"><a href="#cb12-155" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|</span></span>
+<span id="cb12-156"><a href="#cb12-156" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Backtest period <span class="pp">|</span> 2025-01-05 04<span class="sc">:00:</span>00 - 2026-07-14 00<span class="sc">:00:</span>00 <span class="pp">|</span></span>
+<span id="cb12-157"><a href="#cb12-157" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Starting balance <span class="pp">|</span> 100 USDT <span class="pp">|</span></span>
+<span id="cb12-158"><a href="#cb12-158" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Final balance <span class="pp">|</span> 160.714 USDT <span class="pp">|</span></span>
+<span id="cb12-159"><a href="#cb12-159" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Absolute profit <span class="pp">|</span> 60.714 USDT <span class="pp">|</span></span>
+<span id="cb12-160"><a href="#cb12-160" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Total profit <span class="pp">|</span> 60.71% <span class="pp">|</span></span>
+<span id="cb12-161"><a href="#cb12-161" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Market change <span class="pp">|</span> -52.46% <span class="pp">|</span></span>
+<span id="cb12-162"><a href="#cb12-162" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Trades <span class="pp">|</span> 26 <span class="pp">|</span></span>
+<span id="cb12-163"><a href="#cb12-163" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Win / draw / loss <span class="pp">|</span> 19 / 0 / 7 <span class="pp">|</span></span>
+<span id="cb12-164"><a href="#cb12-164" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Win rate <span class="pp">|</span> 73.1% <span class="pp">|</span></span>
+<span id="cb12-165"><a href="#cb12-165" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Average profit per trade <span class="pp">|</span> 5.79% <span class="pp">|</span></span>
+<span id="cb12-166"><a href="#cb12-166" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Average duration <span class="pp">|</span> 3 days, 2<span class="sc">:18:</span>00 <span class="pp">|</span></span>
+<span id="cb12-167"><a href="#cb12-167" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Profit factor <span class="pp">|</span> 4.60 <span class="pp">|</span></span>
+<span id="cb12-168"><a href="#cb12-168" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Sharpe <span class="pp">|</span> 0.57 <span class="pp">|</span></span>
+<span id="cb12-169"><a href="#cb12-169" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Sortino <span class="pp">|</span> 0.99 <span class="pp">|</span></span>
+<span id="cb12-170"><a href="#cb12-170" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Calmar <span class="pp">|</span> 30.76 <span class="pp">|</span></span>
+<span id="cb12-171"><a href="#cb12-171" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> SQN <span class="pp">|</span> 3.20 <span class="pp">|</span></span>
+<span id="cb12-172"><a href="#cb12-172" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Max account drawdown <span class="pp">|</span> 11.516 USDT / 6.81% <span class="pp">|</span></span>
+<span id="cb12-173"><a href="#cb12-173" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Drawdown duration <span class="pp">|</span> 119 days, 14<span class="sc">:00:</span>00 <span class="pp">|</span></span>
+<span id="cb12-174"><a href="#cb12-174" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Best pair <span class="pp">|</span> XRP/USDT, 20.05% <span class="pp">|</span></span>
+<span id="cb12-175"><a href="#cb12-175" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Worst pair <span class="pp">|</span> BTC/USDT, -4.02% <span class="pp">|</span></span>
+<span id="cb12-176"><a href="#cb12-176" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-177"><a href="#cb12-177" aria-hidden="true" tabindex="-1"></a>Per-pair result:</span>
+<span id="cb12-178"><a href="#cb12-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-179"><a href="#cb12-179" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Pair <span class="pp">|</span> Trades <span class="pp">|</span> Profit, USDT <span class="pp">|</span> Profit <span class="pp">|</span> Win rate <span class="pp">|</span></span>
+<span id="cb12-180"><a href="#cb12-180" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|---:|---:|---:|</span></span>
+<span id="cb12-181"><a href="#cb12-181" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> XRP/USDT <span class="pp">|</span> 4 <span class="pp">|</span> 20.055 <span class="pp">|</span> 20.05% <span class="pp">|</span> 100.0% <span class="pp">|</span></span>
+<span id="cb12-182"><a href="#cb12-182" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> DOGE/USDT <span class="pp">|</span> 4 <span class="pp">|</span> 16.631 <span class="pp">|</span> 16.63% <span class="pp">|</span> 75.0% <span class="pp">|</span></span>
+<span id="cb12-183"><a href="#cb12-183" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> ADA/USDT <span class="pp">|</span> 3 <span class="pp">|</span> 12.009 <span class="pp">|</span> 12.01% <span class="pp">|</span> 100.0% <span class="pp">|</span></span>
+<span id="cb12-184"><a href="#cb12-184" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> TRX/USDT <span class="pp">|</span> 4 <span class="pp">|</span> 7.826 <span class="pp">|</span> 7.83% <span class="pp">|</span> 75.0% <span class="pp">|</span></span>
+<span id="cb12-185"><a href="#cb12-185" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> SOL/USDT <span class="pp">|</span> 1 <span class="pp">|</span> 3.494 <span class="pp">|</span> 3.49% <span class="pp">|</span> 100.0% <span class="pp">|</span></span>
+<span id="cb12-186"><a href="#cb12-186" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> BNB/USDT <span class="pp">|</span> 4 <span class="pp">|</span> 3.227 <span class="pp">|</span> 3.23% <span class="pp">|</span> 75.0% <span class="pp">|</span></span>
+<span id="cb12-187"><a href="#cb12-187" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> ETH/USDT <span class="pp">|</span> 5 <span class="pp">|</span> 1.497 <span class="pp">|</span> 1.50% <span class="pp">|</span> 40.0% <span class="pp">|</span></span>
+<span id="cb12-188"><a href="#cb12-188" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> LINK/USDT <span class="pp">|</span> 0 <span class="pp">|</span> 0.000 <span class="pp">|</span> 0.00% <span class="pp">|</span> 0.0% <span class="pp">|</span></span>
+<span id="cb12-189"><a href="#cb12-189" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> AVAX/USDT <span class="pp">|</span> 0 <span class="pp">|</span> 0.000 <span class="pp">|</span> 0.00% <span class="pp">|</span> 0.0% <span class="pp">|</span></span>
+<span id="cb12-190"><a href="#cb12-190" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> BTC/USDT <span class="pp">|</span> 1 <span class="pp">|</span> -4.023 <span class="pp">|</span> -4.02% <span class="pp">|</span> 0.0% <span class="pp">|</span></span>
+<span id="cb12-191"><a href="#cb12-191" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-192"><a href="#cb12-192" aria-hidden="true" tabindex="-1"></a>Monthly breakdown:</span>
+<span id="cb12-193"><a href="#cb12-193" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-194"><a href="#cb12-194" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Month <span class="pp">|</span> Trades <span class="pp">|</span> Profit, USDT <span class="pp">|</span> Win / loss <span class="pp">|</span></span>
+<span id="cb12-195"><a href="#cb12-195" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|---:|---:|</span></span>
+<span id="cb12-196"><a href="#cb12-196" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2025-01 <span class="pp">|</span> 2 <span class="pp">|</span> 4.965 <span class="pp">|</span> 2 / 0 <span class="pp">|</span></span>
+<span id="cb12-197"><a href="#cb12-197" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2025-02 <span class="pp">|</span> 3 <span class="pp">|</span> 10.345 <span class="pp">|</span> 3 / 0 <span class="pp">|</span></span>
+<span id="cb12-198"><a href="#cb12-198" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2025-03 <span class="pp">|</span> 0 <span class="pp">|</span> 0.000 <span class="pp">|</span> 0 / 0 <span class="pp">|</span></span>
+<span id="cb12-199"><a href="#cb12-199" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2025-04 <span class="pp">|</span> 3 <span class="pp">|</span> 23.482 <span class="pp">|</span> 3 / 0 <span class="pp">|</span></span>
+<span id="cb12-200"><a href="#cb12-200" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2025-05 <span class="pp">|</span> 0 <span class="pp">|</span> 0.000 <span class="pp">|</span> 0 / 0 <span class="pp">|</span></span>
+<span id="cb12-201"><a href="#cb12-201" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2025-06 <span class="pp">|</span> 1 <span class="pp">|</span> 1.905 <span class="pp">|</span> 1 / 0 <span class="pp">|</span></span>
+<span id="cb12-202"><a href="#cb12-202" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2025-07 <span class="pp">|</span> 0 <span class="pp">|</span> 0.000 <span class="pp">|</span> 0 / 0 <span class="pp">|</span></span>
+<span id="cb12-203"><a href="#cb12-203" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2025-08 <span class="pp">|</span> 0 <span class="pp">|</span> 0.000 <span class="pp">|</span> 0 / 0 <span class="pp">|</span></span>
+<span id="cb12-204"><a href="#cb12-204" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2025-09 <span class="pp">|</span> 2 <span class="pp">|</span> 2.380 <span class="pp">|</span> 1 / 1 <span class="pp">|</span></span>
+<span id="cb12-205"><a href="#cb12-205" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2025-10 <span class="pp">|</span> 3 <span class="pp">|</span> 12.018 <span class="pp">|</span> 3 / 0 <span class="pp">|</span></span>
+<span id="cb12-206"><a href="#cb12-206" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2025-11 <span class="pp">|</span> 1 <span class="pp">|</span> -2.485 <span class="pp">|</span> 0 / 1 <span class="pp">|</span></span>
+<span id="cb12-207"><a href="#cb12-207" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2025-12 <span class="pp">|</span> 0 <span class="pp">|</span> 0.000 <span class="pp">|</span> 0 / 0 <span class="pp">|</span></span>
+<span id="cb12-208"><a href="#cb12-208" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2026-01 <span class="pp">|</span> 3 <span class="pp">|</span> 2.477 <span class="pp">|</span> 1 / 2 <span class="pp">|</span></span>
+<span id="cb12-209"><a href="#cb12-209" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2026-02 <span class="pp">|</span> 5 <span class="pp">|</span> 7.444 <span class="pp">|</span> 4 / 1 <span class="pp">|</span></span>
+<span id="cb12-210"><a href="#cb12-210" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2026-03 <span class="pp">|</span> 0 <span class="pp">|</span> 0.000 <span class="pp">|</span> 0 / 0 <span class="pp">|</span></span>
+<span id="cb12-211"><a href="#cb12-211" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2026-04 <span class="pp">|</span> 0 <span class="pp">|</span> 0.000 <span class="pp">|</span> 0 / 0 <span class="pp">|</span></span>
+<span id="cb12-212"><a href="#cb12-212" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2026-05 <span class="pp">|</span> 1 <span class="pp">|</span> -0.811 <span class="pp">|</span> 0 / 1 <span class="pp">|</span></span>
+<span id="cb12-213"><a href="#cb12-213" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2026-06 <span class="pp">|</span> 2 <span class="pp">|</span> -1.005 <span class="pp">|</span> 1 / 1 <span class="pp">|</span></span>
+<span id="cb12-214"><a href="#cb12-214" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-215"><a href="#cb12-215" aria-hidden="true" tabindex="-1"></a><span class="fu">## 5m train/test extension</span></span>
+<span id="cb12-216"><a href="#cb12-216" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-217"><a href="#cb12-217" aria-hidden="true" tabindex="-1"></a>To reduce the in-sample bias, the next experiment uses <span class="in">`5m`</span> candles and a fixed</span>
+<span id="cb12-218"><a href="#cb12-218" aria-hidden="true" tabindex="-1"></a>train/test split:</span>
+<span id="cb12-219"><a href="#cb12-219" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-220"><a href="#cb12-220" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>exchange: Binance spot;</span>
+<span id="cb12-221"><a href="#cb12-221" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>timeframe: <span class="in">`5m`</span>;</span>
+<span id="cb12-222"><a href="#cb12-222" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>pairs: the same 10 USDT pairs used by the 1h experiment;</span>
+<span id="cb12-223"><a href="#cb12-223" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>data range: <span class="in">`2025-01-01`</span> - <span class="in">`2026-07-14`</span>;</span>
+<span id="cb12-224"><a href="#cb12-224" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>train: <span class="in">`2025-01-01`</span> - <span class="in">`2025-12-31`</span>;</span>
+<span id="cb12-225"><a href="#cb12-225" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>test: <span class="in">`2026-01-01`</span> - <span class="in">`2026-07-14`</span>;</span>
+<span id="cb12-226"><a href="#cb12-226" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`max_open_trades = 10`</span>;</span>
+<span id="cb12-227"><a href="#cb12-227" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>test parameters are not reoptimized.</span>
+<span id="cb12-228"><a href="#cb12-228" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-229"><a href="#cb12-229" aria-hidden="true" tabindex="-1"></a>The new files are:</span>
+<span id="cb12-230"><a href="#cb12-230" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-231"><a href="#cb12-231" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`user_data/strategies/rsi_only_5m/config_rsi_only_5m.json`</span>;</span>
+<span id="cb12-232"><a href="#cb12-232" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`user_data/strategies/rsi_only_risk_managed_5m/config_rsi_risk_managed_5m.json`</span>;</span>
+<span id="cb12-233"><a href="#cb12-233" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`user_data/strategies/rsi_only_5m/RsiOnly5mStrategy.py`</span>;</span>
+<span id="cb12-234"><a href="#cb12-234" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`user_data/strategies/rsi_only_risk_managed_5m/RsiOnlyRiskManaged5mStrategy.py`</span>.</span>
+<span id="cb12-235"><a href="#cb12-235" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-236"><a href="#cb12-236" aria-hidden="true" tabindex="-1"></a>The risk-managed version still uses RSI as the only market indicator, but it is</span>
+<span id="cb12-237"><a href="#cb12-237" aria-hidden="true" tabindex="-1"></a>not a strict RSI-only exit system anymore. It adds Freqtrade risk controls:</span>
+<span id="cb12-238"><a href="#cb12-238" aria-hidden="true" tabindex="-1"></a>optimized ROI, stoploss, trailing stop, and protections (<span class="in">`CooldownPeriod`</span>,</span>
+<span id="cb12-239"><a href="#cb12-239" aria-hidden="true" tabindex="-1"></a><span class="in">`MaxDrawdown`</span>, <span class="in">`LowProfitPairs`</span>). Final risk-managed backtests were run with</span>
+<span id="cb12-240"><a href="#cb12-240" aria-hidden="true" tabindex="-1"></a><span class="in">`--enable-protections`</span>.</span>
+<span id="cb12-241"><a href="#cb12-241" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-242"><a href="#cb12-242" aria-hidden="true" tabindex="-1"></a>Downloaded <span class="in">`5m`</span> data contains 10 <span class="in">`*-5m.feather`</span> files with 160,999 candles per</span>
+<span id="cb12-243"><a href="#cb12-243" aria-hidden="true" tabindex="-1"></a>pair, from <span class="in">`2025-01-01 00:00:00+00:00`</span> to <span class="in">`2026-07-14 00:30:00+00:00`</span>.</span>
+<span id="cb12-244"><a href="#cb12-244" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-245"><a href="#cb12-245" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5m reproduction commands</span></span>
+<span id="cb12-246"><a href="#cb12-246" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-247"><a href="#cb12-247" aria-hidden="true" tabindex="-1"></a><span class="in">```powershell</span></span>
+<span id="cb12-248"><a href="#cb12-248" aria-hidden="true" tabindex="-1"></a><span class="in">uv run freqtrade download-data --userdir user_data --config user_data/strategies/rsi_only_risk_managed_5m/config_rsi_risk_managed_5m.json --timeframes 5m --timerange 20250101-20260714</span></span>
+<span id="cb12-249"><a href="#cb12-249" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-250"><a href="#cb12-250" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-251"><a href="#cb12-251" aria-hidden="true" tabindex="-1"></a>Baseline RSI-only Hyperopt on train:</span>
+<span id="cb12-252"><a href="#cb12-252" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-253"><a href="#cb12-253" aria-hidden="true" tabindex="-1"></a><span class="in">```powershell</span></span>
+<span id="cb12-254"><a href="#cb12-254" aria-hidden="true" tabindex="-1"></a><span class="in">uv run freqtrade hyperopt --userdir user_data --config user_data/strategies/rsi_only_5m/config_rsi_only_5m.json --strategy RsiOnly5mStrategy --timeframe 5m --timerange 20250101-20260101 --spaces buy sell --hyperopt-loss ProfitDrawDownHyperOptLoss -e 300 --random-state 42 --min-trades 50 -j 8 --analyze-per-epoch</span></span>
+<span id="cb12-255"><a href="#cb12-255" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-256"><a href="#cb12-256" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-257"><a href="#cb12-257" aria-hidden="true" tabindex="-1"></a>Risk-managed Hyperopt on train:</span>
+<span id="cb12-258"><a href="#cb12-258" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-259"><a href="#cb12-259" aria-hidden="true" tabindex="-1"></a><span class="in">```powershell</span></span>
+<span id="cb12-260"><a href="#cb12-260" aria-hidden="true" tabindex="-1"></a><span class="in">uv run freqtrade hyperopt --userdir user_data --config user_data/strategies/rsi_only_risk_managed_5m/config_rsi_risk_managed_5m.json --strategy RsiOnlyRiskManaged5mStrategy --timeframe 5m --timerange 20250101-20260101 --spaces buy sell roi stoploss trailing protection --hyperopt-loss ProfitDrawDownHyperOptLoss -e 300 --random-state 42 --min-trades 50 -j 8 --analyze-per-epoch</span></span>
+<span id="cb12-261"><a href="#cb12-261" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-262"><a href="#cb12-262" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-263"><a href="#cb12-263" aria-hidden="true" tabindex="-1"></a>The baseline run completed all 300 epochs. The risk-managed search hit Windows</span>
+<span id="cb12-264"><a href="#cb12-264" aria-hidden="true" tabindex="-1"></a>resource/time limits after saving 41 epochs, so the risk-managed result should</span>
+<span id="cb12-265"><a href="#cb12-265" aria-hidden="true" tabindex="-1"></a>be treated as a partial pilot optimization, not as a fully comparable 300-epoch</span>
+<span id="cb12-266"><a href="#cb12-266" aria-hidden="true" tabindex="-1"></a>search.</span>
+<span id="cb12-267"><a href="#cb12-267" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-268"><a href="#cb12-268" aria-hidden="true" tabindex="-1"></a>Backtests:</span>
+<span id="cb12-269"><a href="#cb12-269" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-270"><a href="#cb12-270" aria-hidden="true" tabindex="-1"></a><span class="in">```powershell</span></span>
+<span id="cb12-271"><a href="#cb12-271" aria-hidden="true" tabindex="-1"></a><span class="in">uv run freqtrade backtesting --userdir user_data --config user_data/strategies/rsi_only_5m/config_rsi_only_5m.json --strategy RsiOnly5mStrategy --timeframe 5m --timerange 20250101-20260101 --export trades --breakdown month --cache none --notes rsi_5m_baseline_train</span></span>
+<span id="cb12-272"><a href="#cb12-272" aria-hidden="true" tabindex="-1"></a><span class="in">uv run freqtrade backtesting --userdir user_data --config user_data/strategies/rsi_only_5m/config_rsi_only_5m.json --strategy RsiOnly5mStrategy --timeframe 5m --timerange 20260101-20260714 --export trades --breakdown month --cache none --notes rsi_5m_baseline_test</span></span>
+<span id="cb12-273"><a href="#cb12-273" aria-hidden="true" tabindex="-1"></a><span class="in">uv run freqtrade backtesting --userdir user_data --config user_data/strategies/rsi_only_risk_managed_5m/config_rsi_risk_managed_5m.json --strategy RsiOnlyRiskManaged5mStrategy --timeframe 5m --timerange 20250101-20260101 --export trades --breakdown month --cache none --enable-protections --notes rsi_5m_risk_train</span></span>
+<span id="cb12-274"><a href="#cb12-274" aria-hidden="true" tabindex="-1"></a><span class="in">uv run freqtrade backtesting --userdir user_data --config user_data/strategies/rsi_only_risk_managed_5m/config_rsi_risk_managed_5m.json --strategy RsiOnlyRiskManaged5mStrategy --timeframe 5m --timerange 20260101-20260714 --export trades --breakdown month --cache none --enable-protections --notes rsi_5m_risk_test</span></span>
+<span id="cb12-275"><a href="#cb12-275" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-276"><a href="#cb12-276" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-277"><a href="#cb12-277" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5m optimized parameters</span></span>
+<span id="cb12-278"><a href="#cb12-278" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-279"><a href="#cb12-279" aria-hidden="true" tabindex="-1"></a>Baseline RSI-only, trained on 2025:</span>
+<span id="cb12-280"><a href="#cb12-280" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-281"><a href="#cb12-281" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Parameter <span class="pp">|</span> Value <span class="pp">|</span></span>
+<span id="cb12-282"><a href="#cb12-282" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|</span></span>
+<span id="cb12-283"><a href="#cb12-283" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`buy_rsi_period`</span> <span class="pp">|</span> 19 <span class="pp">|</span></span>
+<span id="cb12-284"><a href="#cb12-284" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`buy_rsi_lower`</span> <span class="pp">|</span> 13 <span class="pp">|</span></span>
+<span id="cb12-285"><a href="#cb12-285" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`sell_rsi_upper`</span> <span class="pp">|</span> 79 <span class="pp">|</span></span>
+<span id="cb12-286"><a href="#cb12-286" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`minimal_roi`</span> <span class="pp">|</span> <span class="in">`{"0": 100}`</span> <span class="pp">|</span></span>
+<span id="cb12-287"><a href="#cb12-287" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`stoploss`</span> <span class="pp">|</span> <span class="in">`-0.99`</span> <span class="pp">|</span></span>
+<span id="cb12-288"><a href="#cb12-288" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`max_open_trades`</span> <span class="pp">|</span> 10 <span class="pp">|</span></span>
+<span id="cb12-289"><a href="#cb12-289" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-290"><a href="#cb12-290" aria-hidden="true" tabindex="-1"></a>Risk-managed RSI, partial 41-epoch pilot trained on 2025:</span>
+<span id="cb12-291"><a href="#cb12-291" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-292"><a href="#cb12-292" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Parameter <span class="pp">|</span> Value <span class="pp">|</span></span>
+<span id="cb12-293"><a href="#cb12-293" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|</span></span>
+<span id="cb12-294"><a href="#cb12-294" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`buy_rsi_period`</span> <span class="pp">|</span> 22 <span class="pp">|</span></span>
+<span id="cb12-295"><a href="#cb12-295" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`buy_rsi_lower`</span> <span class="pp">|</span> 16 <span class="pp">|</span></span>
+<span id="cb12-296"><a href="#cb12-296" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`sell_rsi_upper`</span> <span class="pp">|</span> 69 <span class="pp">|</span></span>
+<span id="cb12-297"><a href="#cb12-297" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`minimal_roi`</span> <span class="pp">|</span> <span class="in">`{"0": 0.161, "30": 0.029, "83": 0.015, "148": 0}`</span> <span class="pp">|</span></span>
+<span id="cb12-298"><a href="#cb12-298" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`stoploss`</span> <span class="pp">|</span> <span class="in">`-0.342`</span> <span class="pp">|</span></span>
+<span id="cb12-299"><a href="#cb12-299" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`trailing_stop`</span> <span class="pp">|</span> <span class="in">`true`</span> <span class="pp">|</span></span>
+<span id="cb12-300"><a href="#cb12-300" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`trailing_stop_positive`</span> <span class="pp">|</span> <span class="in">`0.184`</span> <span class="pp">|</span></span>
+<span id="cb12-301"><a href="#cb12-301" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`trailing_stop_positive_offset`</span> <span class="pp">|</span> <span class="in">`0.186`</span> <span class="pp">|</span></span>
+<span id="cb12-302"><a href="#cb12-302" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`protection_cooldown_stop_duration`</span> <span class="pp">|</span> 20 <span class="pp">|</span></span>
+<span id="cb12-303"><a href="#cb12-303" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`protection_max_allowed_drawdown`</span> <span class="pp">|</span> 0.089 <span class="pp">|</span></span>
+<span id="cb12-304"><a href="#cb12-304" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`protection_max_drawdown_stop_duration`</span> <span class="pp">|</span> 215 <span class="pp">|</span></span>
+<span id="cb12-305"><a href="#cb12-305" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`protection_low_profit_required_profit`</span> <span class="pp">|</span> 0.009 <span class="pp">|</span></span>
+<span id="cb12-306"><a href="#cb12-306" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`protection_low_profit_stop_duration`</span> <span class="pp">|</span> 36 <span class="pp">|</span></span>
+<span id="cb12-307"><a href="#cb12-307" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`max_open_trades`</span> <span class="pp">|</span> 10 <span class="pp">|</span></span>
+<span id="cb12-308"><a href="#cb12-308" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-309"><a href="#cb12-309" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5m baseline RSI-only</span></span>
+<span id="cb12-310"><a href="#cb12-310" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-311"><a href="#cb12-311" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Split <span class="pp">|</span> Trades <span class="pp">|</span> Profit <span class="pp">|</span> Max drawdown <span class="pp">|</span> Win rate <span class="pp">|</span> Profit factor <span class="pp">|</span> Sharpe <span class="pp">|</span> Sortino <span class="pp">|</span> Best pair <span class="pp">|</span> Worst pair <span class="pp">|</span></span>
+<span id="cb12-312"><a href="#cb12-312" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|---:|---:|---:|---:|---:|---:|---|---|</span></span>
+<span id="cb12-313"><a href="#cb12-313" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Train <span class="pp">|</span> 57 <span class="pp">|</span> 53.169 USDT / 53.17% <span class="pp">|</span> 2.276 USDT / 2.07% <span class="pp">|</span> 66.7% <span class="pp">|</span> 10.06 <span class="pp">|</span> 1.22 <span class="pp">|</span> 8.57 <span class="pp">|</span> ADA/USDT, 9.18% <span class="pp">|</span> SOL/USDT, 1.58% <span class="pp">|</span></span>
+<span id="cb12-314"><a href="#cb12-314" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Test <span class="pp">|</span> 57 <span class="pp">|</span> -12.314 USDT / -12.31% <span class="pp">|</span> 23.712 USDT / 23.61% <span class="pp">|</span> 71.9% <span class="pp">|</span> 0.51 <span class="pp">|</span> -1.04 <span class="pp">|</span> -0.82 <span class="pp">|</span> XRP/USDT, 1.26% <span class="pp">|</span> SOL/USDT, -2.47% <span class="pp">|</span></span>
+<span id="cb12-315"><a href="#cb12-315" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-316"><a href="#cb12-316" aria-hidden="true" tabindex="-1"></a>The baseline overfit signal is clear: strong train performance did not survive</span>
+<span id="cb12-317"><a href="#cb12-317" aria-hidden="true" tabindex="-1"></a>the untouched 2026 test window. The win rate stayed high, but the few losing</span>
+<span id="cb12-318"><a href="#cb12-318" aria-hidden="true" tabindex="-1"></a>trades were large enough to dominate total PnL.</span>
+<span id="cb12-319"><a href="#cb12-319" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-320"><a href="#cb12-320" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5m risk-managed RSI</span></span>
+<span id="cb12-321"><a href="#cb12-321" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-322"><a href="#cb12-322" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Split <span class="pp">|</span> Trades <span class="pp">|</span> Profit <span class="pp">|</span> Max drawdown <span class="pp">|</span> Win rate <span class="pp">|</span> Profit factor <span class="pp">|</span> Sharpe <span class="pp">|</span> Sortino <span class="pp">|</span> Best pair <span class="pp">|</span> Worst pair <span class="pp">|</span></span>
+<span id="cb12-323"><a href="#cb12-323" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|---:|---:|---:|---:|---:|---:|---|---|</span></span>
+<span id="cb12-324"><a href="#cb12-324" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Train <span class="pp">|</span> 94 <span class="pp">|</span> -1.212 USDT / -1.21% <span class="pp">|</span> 8.687 USDT / 8.54% <span class="pp">|</span> 60.6% <span class="pp">|</span> 0.91 <span class="pp">|</span> -0.10 <span class="pp">|</span> -0.08 <span class="pp">|</span> BNB/USDT, 1.60% <span class="pp">|</span> DOGE/USDT, -3.49% <span class="pp">|</span></span>
+<span id="cb12-325"><a href="#cb12-325" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Test <span class="pp">|</span> 89 <span class="pp">|</span> -8.936 USDT / -8.94% <span class="pp">|</span> 10.291 USDT / 10.29% <span class="pp">|</span> 57.3% <span class="pp">|</span> 0.22 <span class="pp">|</span> -1.99 <span class="pp">|</span> -1.43 <span class="pp">|</span> ADA/USDT, 0.54% <span class="pp">|</span> AVAX/USDT, -3.08% <span class="pp">|</span></span>
+<span id="cb12-326"><a href="#cb12-326" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-327"><a href="#cb12-327" aria-hidden="true" tabindex="-1"></a>The risk-managed test lost less money and had a smaller account drawdown than</span>
+<span id="cb12-328"><a href="#cb12-328" aria-hidden="true" tabindex="-1"></a>the baseline test, but it also had a worse profit factor and worse Sharpe /</span>
+<span id="cb12-329"><a href="#cb12-329" aria-hidden="true" tabindex="-1"></a>Sortino. Because the risk-managed Hyperopt was partial, this is best read as a</span>
+<span id="cb12-330"><a href="#cb12-330" aria-hidden="true" tabindex="-1"></a>directional robustness check rather than a final verdict on the risk controls.</span>
+<span id="cb12-331"><a href="#cb12-331" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-332"><a href="#cb12-332" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5m test comparison</span></span>
+<span id="cb12-333"><a href="#cb12-333" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-334"><a href="#cb12-334" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Metric <span class="pp">|</span> Baseline RSI-only <span class="pp">|</span> Risk-managed RSI <span class="pp">|</span></span>
+<span id="cb12-335"><a href="#cb12-335" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|---:|</span></span>
+<span id="cb12-336"><a href="#cb12-336" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Test profit <span class="pp">|</span> -12.314 USDT / -12.31% <span class="pp">|</span> -8.936 USDT / -8.94% <span class="pp">|</span></span>
+<span id="cb12-337"><a href="#cb12-337" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Max account drawdown <span class="pp">|</span> 23.712 USDT / 23.61% <span class="pp">|</span> 10.291 USDT / 10.29% <span class="pp">|</span></span>
+<span id="cb12-338"><a href="#cb12-338" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Trades <span class="pp">|</span> 57 <span class="pp">|</span> 89 <span class="pp">|</span></span>
+<span id="cb12-339"><a href="#cb12-339" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Win rate <span class="pp">|</span> 71.9% <span class="pp">|</span> 57.3% <span class="pp">|</span></span>
+<span id="cb12-340"><a href="#cb12-340" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Profit factor <span class="pp">|</span> 0.51 <span class="pp">|</span> 0.22 <span class="pp">|</span></span>
+<span id="cb12-341"><a href="#cb12-341" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Sharpe <span class="pp">|</span> -1.04 <span class="pp">|</span> -1.99 <span class="pp">|</span></span>
+<span id="cb12-342"><a href="#cb12-342" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Sortino <span class="pp">|</span> -0.82 <span class="pp">|</span> -1.43 <span class="pp">|</span></span>
+<span id="cb12-343"><a href="#cb12-343" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Market change <span class="pp">|</span> -34.67% <span class="pp">|</span> -34.67% <span class="pp">|</span></span>
+<span id="cb12-344"><a href="#cb12-344" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-345"><a href="#cb12-345" aria-hidden="true" tabindex="-1"></a>Monthly test breakdown:</span>
+<span id="cb12-346"><a href="#cb12-346" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-347"><a href="#cb12-347" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Month <span class="pp">|</span> Baseline trades <span class="pp">|</span> Baseline profit, USDT <span class="pp">|</span> Risk trades <span class="pp">|</span> Risk profit, USDT <span class="pp">|</span></span>
+<span id="cb12-348"><a href="#cb12-348" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|---:|---:|---:|</span></span>
+<span id="cb12-349"><a href="#cb12-349" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2026-01 <span class="pp">|</span> 3 <span class="pp">|</span> -0.043 <span class="pp">|</span> 18 <span class="pp">|</span> -2.057 <span class="pp">|</span></span>
+<span id="cb12-350"><a href="#cb12-350" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2026-02 <span class="pp">|</span> 13 <span class="pp">|</span> -22.843 <span class="pp">|</span> 22 <span class="pp">|</span> -7.840 <span class="pp">|</span></span>
+<span id="cb12-351"><a href="#cb12-351" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2026-03 <span class="pp">|</span> 14 <span class="pp">|</span> 3.887 <span class="pp">|</span> 11 <span class="pp">|</span> -0.201 <span class="pp">|</span></span>
+<span id="cb12-352"><a href="#cb12-352" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2026-04 <span class="pp">|</span> 4 <span class="pp">|</span> 1.216 <span class="pp">|</span> 11 <span class="pp">|</span> -0.145 <span class="pp">|</span></span>
+<span id="cb12-353"><a href="#cb12-353" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2026-05 <span class="pp">|</span> 10 <span class="pp">|</span> 1.144 <span class="pp">|</span> 12 <span class="pp">|</span> 0.068 <span class="pp">|</span></span>
+<span id="cb12-354"><a href="#cb12-354" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2026-06 <span class="pp">|</span> 5 <span class="pp">|</span> 1.426 <span class="pp">|</span> 12 <span class="pp">|</span> 1.306 <span class="pp">|</span></span>
+<span id="cb12-355"><a href="#cb12-355" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2026-07 <span class="pp">|</span> 8 <span class="pp">|</span> 2.899 <span class="pp">|</span> 3 <span class="pp">|</span> -0.067 <span class="pp">|</span></span>
+<span id="cb12-356"><a href="#cb12-356" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-357"><a href="#cb12-357" aria-hidden="true" tabindex="-1"></a><span class="al">![5m test equity curve](assets/rsi-5m-equity-baseline-vs-risk-test.png)</span></span>
+<span id="cb12-358"><a href="#cb12-358" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-359"><a href="#cb12-359" aria-hidden="true" tabindex="-1"></a>The equity curve shows the main difference: risk controls reduced the February</span>
+<span id="cb12-360"><a href="#cb12-360" aria-hidden="true" tabindex="-1"></a>capital drop, while the baseline recovered more later in the test window but</span>
+<span id="cb12-361"><a href="#cb12-361" aria-hidden="true" tabindex="-1"></a>still finished lower overall.</span>
+<span id="cb12-362"><a href="#cb12-362" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-363"><a href="#cb12-363" aria-hidden="true" tabindex="-1"></a><span class="al">![5m test trade timeline](assets/rsi-5m-trade-timeline-test.png)</span></span>
+<span id="cb12-364"><a href="#cb12-364" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-365"><a href="#cb12-365" aria-hidden="true" tabindex="-1"></a>The timeline shows that the risk-managed version trades more frequently and</span>
+<span id="cb12-366"><a href="#cb12-366" aria-hidden="true" tabindex="-1"></a>closes many positions quickly through ROI/trailing/protection-influenced</span>
+<span id="cb12-367"><a href="#cb12-367" aria-hidden="true" tabindex="-1"></a>behavior. The baseline trades less often but holds some losing February</span>
+<span id="cb12-368"><a href="#cb12-368" aria-hidden="true" tabindex="-1"></a>positions longer.</span>
+<span id="cb12-369"><a href="#cb12-369" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-370"><a href="#cb12-370" aria-hidden="true" tabindex="-1"></a><span class="al">![Risk-managed best test pair markers](assets/rsi-5m-risk-best-pair-trades-test.png)</span></span>
+<span id="cb12-371"><a href="#cb12-371" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-372"><a href="#cb12-372" aria-hidden="true" tabindex="-1"></a>The best risk-managed test pair was <span class="in">`ADA/USDT`</span>, but even that pair only</span>
+<span id="cb12-373"><a href="#cb12-373" aria-hidden="true" tabindex="-1"></a>contributed <span class="in">`+0.537 USDT`</span> (<span class="in">`+0.54%`</span>). This reinforces that the out-of-sample edge</span>
+<span id="cb12-374"><a href="#cb12-374" aria-hidden="true" tabindex="-1"></a>was weak in the 2026 test window.</span>
+<span id="cb12-375"><a href="#cb12-375" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-376"><a href="#cb12-376" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5m conclusion</span></span>
+<span id="cb12-377"><a href="#cb12-377" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-378"><a href="#cb12-378" aria-hidden="true" tabindex="-1"></a>The train/test split changes the interpretation materially. The original 1h</span>
+<span id="cb12-379"><a href="#cb12-379" aria-hidden="true" tabindex="-1"></a>result and the 5m baseline train result both look attractive in-sample, but the</span>
+<span id="cb12-380"><a href="#cb12-380" aria-hidden="true" tabindex="-1"></a>untouched 2026 test window is negative. The risk-managed variant reduced test</span>
+<span id="cb12-381"><a href="#cb12-381" aria-hidden="true" tabindex="-1"></a>drawdown from <span class="in">`23.61%`</span> to <span class="in">`10.29%`</span> and improved absolute test PnL from <span class="in">`-12.31%`</span></span>
+<span id="cb12-382"><a href="#cb12-382" aria-hidden="true" tabindex="-1"></a>to <span class="in">`-8.94%`</span>, but it did not produce a profitable or statistically convincing</span>
+<span id="cb12-383"><a href="#cb12-383" aria-hidden="true" tabindex="-1"></a>strategy. The next research step should be a proper walk-forward optimization</span>
+<span id="cb12-384"><a href="#cb12-384" aria-hidden="true" tabindex="-1"></a>with multiple rolling windows, not a single train/test split.</span>
+<span id="cb12-385"><a href="#cb12-385" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-386"><a href="#cb12-386" aria-hidden="true" tabindex="-1"></a><span class="fu">### Stoploss -5% sensitivity check</span></span>
+<span id="cb12-387"><a href="#cb12-387" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-388"><a href="#cb12-388" aria-hidden="true" tabindex="-1"></a>After the train/test experiment, a fixed <span class="in">`5%`</span> stoploss was checked against the</span>
+<span id="cb12-389"><a href="#cb12-389" aria-hidden="true" tabindex="-1"></a>current optimized parameters. In Freqtrade this is configured as</span>
+<span id="cb12-390"><a href="#cb12-390" aria-hidden="true" tabindex="-1"></a><span class="in">`stoploss = -0.05`</span>; a positive <span class="in">`0.05`</span> is not the strategy value.</span>
+<span id="cb12-391"><a href="#cb12-391" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-392"><a href="#cb12-392" aria-hidden="true" tabindex="-1"></a>This was a post-hoc sensitivity check, not a fresh Hyperopt run. The test used a</span>
+<span id="cb12-393"><a href="#cb12-393" aria-hidden="true" tabindex="-1"></a>temporary config-level stoploss override, which Freqtrade applies after loading</span>
+<span id="cb12-394"><a href="#cb12-394" aria-hidden="true" tabindex="-1"></a>strategy parameters from <span class="in">`*.json`</span>.</span>
+<span id="cb12-395"><a href="#cb12-395" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-396"><a href="#cb12-396" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Strategy / window <span class="pp">|</span> Original result <span class="pp">|</span> With <span class="in">`stoploss = -0.05`</span> <span class="pp">|</span> Change <span class="pp">|</span></span>
+<span id="cb12-397"><a href="#cb12-397" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|---:|---|</span></span>
+<span id="cb12-398"><a href="#cb12-398" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`RsiOnly5mStrategy`</span>, 2026 test <span class="pp">|</span> -12.31%, DD 23.61% <span class="pp">|</span> +4.93%, DD 8.00% <span class="pp">|</span> Better <span class="pp">|</span></span>
+<span id="cb12-399"><a href="#cb12-399" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`RsiOnlyRiskManaged5mStrategy`</span>, 2026 test <span class="pp">|</span> -8.94%, DD 10.29% <span class="pp">|</span> -5.01%, DD 6.41% <span class="pp">|</span> Smaller loss, smaller drawdown <span class="pp">|</span></span>
+<span id="cb12-400"><a href="#cb12-400" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`RsiOnlyStrategy`</span>, 1h in-sample full period <span class="pp">|</span> +60.71%, DD 6.81% <span class="pp">|</span> +3.08%, DD 26.30% <span class="pp">|</span> Worse <span class="pp">|</span></span>
+<span id="cb12-401"><a href="#cb12-401" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-402"><a href="#cb12-402" aria-hidden="true" tabindex="-1"></a>Detailed <span class="in">`5m`</span> test metrics:</span>
+<span id="cb12-403"><a href="#cb12-403" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-404"><a href="#cb12-404" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Strategy <span class="pp">|</span> Trades <span class="pp">|</span> Profit <span class="pp">|</span> Max drawdown <span class="pp">|</span> Win rate <span class="pp">|</span> Profit factor <span class="pp">|</span> Sharpe <span class="pp">|</span> Sortino <span class="pp">|</span></span>
+<span id="cb12-405"><a href="#cb12-405" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|---:|---:|---:|---:|---:|---:|</span></span>
+<span id="cb12-406"><a href="#cb12-406" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Baseline RSI-only, original <span class="pp">|</span> 57 <span class="pp">|</span> -12.314 USDT / -12.31% <span class="pp">|</span> 23.712 USDT / 23.61% <span class="pp">|</span> 71.9% <span class="pp">|</span> 0.51 <span class="pp">|</span> -1.04 <span class="pp">|</span> -0.82 <span class="pp">|</span></span>
+<span id="cb12-407"><a href="#cb12-407" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Baseline RSI-only, <span class="in">`-5%`</span> stoploss <span class="pp">|</span> 69 <span class="pp">|</span> 4.934 USDT / 4.93% <span class="pp">|</span> 8.004 USDT / 8.00% <span class="pp">|</span> 63.8% <span class="pp">|</span> 1.46 <span class="pp">|</span> 1.07 <span class="pp">|</span> 3.07 <span class="pp">|</span></span>
+<span id="cb12-408"><a href="#cb12-408" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Risk-managed RSI, original <span class="pp">|</span> 89 <span class="pp">|</span> -8.936 USDT / -8.94% <span class="pp">|</span> 10.291 USDT / 10.29% <span class="pp">|</span> 57.3% <span class="pp">|</span> 0.22 <span class="pp">|</span> -1.99 <span class="pp">|</span> -1.43 <span class="pp">|</span></span>
+<span id="cb12-409"><a href="#cb12-409" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Risk-managed RSI, <span class="in">`-5%`</span> stoploss <span class="pp">|</span> 90 <span class="pp">|</span> -5.006 USDT / -5.01% <span class="pp">|</span> 6.413 USDT / 6.41% <span class="pp">|</span> 53.3% <span class="pp">|</span> 0.34 <span class="pp">|</span> -2.44 <span class="pp">|</span> -2.17 <span class="pp">|</span></span>
+<span id="cb12-410"><a href="#cb12-410" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-411"><a href="#cb12-411" aria-hidden="true" tabindex="-1"></a>The fixed <span class="in">`-5%`</span> stoploss is promising for the <span class="in">`5m`</span> baseline because it turns the</span>
+<span id="cb12-412"><a href="#cb12-412" aria-hidden="true" tabindex="-1"></a>2026 test from negative to positive and cuts drawdown sharply. However, it does</span>
+<span id="cb12-413"><a href="#cb12-413" aria-hidden="true" tabindex="-1"></a>not transfer cleanly to the 1h strategy, and the risk-managed strategy remains</span>
+<span id="cb12-414"><a href="#cb12-414" aria-hidden="true" tabindex="-1"></a>negative. Since this check was made after seeing the test result, it also starts</span>
+<span id="cb12-415"><a href="#cb12-415" aria-hidden="true" tabindex="-1"></a>to use the test set as a design signal. The next defensible experiment is to add</span>
+<span id="cb12-416"><a href="#cb12-416" aria-hidden="true" tabindex="-1"></a><span class="in">`stoploss`</span> to Hyperopt on the train window only, then evaluate the selected</span>
+<span id="cb12-417"><a href="#cb12-417" aria-hidden="true" tabindex="-1"></a>stoploss on a fresh untouched test window or through rolling walk-forward</span>
+<span id="cb12-418"><a href="#cb12-418" aria-hidden="true" tabindex="-1"></a>splits.</span>
+<span id="cb12-419"><a href="#cb12-419" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-420"><a href="#cb12-420" aria-hidden="true" tabindex="-1"></a>Artifacts from this check:</span>
+<span id="cb12-421"><a href="#cb12-421" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-422"><a href="#cb12-422" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`user_data/backtest_results/backtest-result-2026-07-15_12-11-46.zip`</span>:</span>
+<span id="cb12-423"><a href="#cb12-423" aria-hidden="true" tabindex="-1"></a>  <span class="in">`RsiOnly5mStrategy`</span>, 2026 test, <span class="in">`stoploss = -0.05`</span>;</span>
+<span id="cb12-424"><a href="#cb12-424" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`user_data/backtest_results/backtest-result-2026-07-15_12-12-28.zip`</span>:</span>
+<span id="cb12-425"><a href="#cb12-425" aria-hidden="true" tabindex="-1"></a>  <span class="in">`RsiOnlyRiskManaged5mStrategy`</span>, 2026 test, <span class="in">`stoploss = -0.05`</span>;</span>
+<span id="cb12-426"><a href="#cb12-426" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`user_data/backtest_results/backtest-result-2026-07-15_12-13-52.zip`</span>:</span>
+<span id="cb12-427"><a href="#cb12-427" aria-hidden="true" tabindex="-1"></a>  <span class="in">`RsiOnlyStrategy`</span>, 1h full period, <span class="in">`stoploss = -0.05`</span>.</span>
+<span id="cb12-428"><a href="#cb12-428" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-429"><a href="#cb12-429" aria-hidden="true" tabindex="-1"></a><span class="fu">## Notes and limitations</span></span>
+<span id="cb12-430"><a href="#cb12-430" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-431"><a href="#cb12-431" aria-hidden="true" tabindex="-1"></a>The optimized strategy is very selective: only 26 trades over about 554</span>
+<span id="cb12-432"><a href="#cb12-432" aria-hidden="true" tabindex="-1"></a>backtest days. That selectivity is probably why drawdown looks controlled, but</span>
+<span id="cb12-433"><a href="#cb12-433" aria-hidden="true" tabindex="-1"></a>it also means the estimate is fragile.</span>
+<span id="cb12-434"><a href="#cb12-434" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-435"><a href="#cb12-435" aria-hidden="true" tabindex="-1"></a>This is an in-sample Hyperopt plus final backtest on the same timerange. The</span>
+<span id="cb12-436"><a href="#cb12-436" aria-hidden="true" tabindex="-1"></a>numbers are useful for checking whether the RSI-only idea is worth deeper</span>
+<span id="cb12-437"><a href="#cb12-437" aria-hidden="true" tabindex="-1"></a>research, but they are not evidence of live robustness. A better next experiment</span>
+<span id="cb12-438"><a href="#cb12-438" aria-hidden="true" tabindex="-1"></a>is a walk-forward split: optimize on an earlier window, then test untouched data</span>
+<span id="cb12-439"><a href="#cb12-439" aria-hidden="true" tabindex="-1"></a>from a later window.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+<footer class="footer"><div class="nav-footer"><div class="nav-footer-center"><div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/04Maksimka/TimeAnalysis-Research/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div></div></footer></body></html>

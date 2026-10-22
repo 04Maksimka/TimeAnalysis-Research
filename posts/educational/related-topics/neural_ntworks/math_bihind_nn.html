@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.36">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="TimeAnalysis Team">
+<meta name="dcterms.date" content="2026-06-18">
+<meta name="description" content="A NumPy-first walkthrough of neural-network math, mini-batch SGD, and backpropagation on MNIST.">
+
+<title>Math Behind Neural Networks – TimeAnalysis Research</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../../">
+<script src="../../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../../site_libs/bootstrap/bootstrap-a0f9fd0d421825b736dc1bbcbcba2219.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../../../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../../../index.html">
+    <span class="navbar-title">TimeAnalysis Research</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../index.html"> 
+<span class="menu-text">Categories</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../model-strategies.html"> 
+<span class="menu-text">Models &amp; Strategies</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../educational.html"> 
+<span class="menu-text">Educational</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../project-infrastructure.html"> 
+<span class="menu-text">Infrastructure</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../exploratory-data-analysis.html"> 
+<span class="menu-text">EDA</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/04Maksimka/TimeAnalysis-Research"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#goal-and-roadmap" id="toc-goal-and-roadmap" class="nav-link active" data-scroll-target="#goal-and-roadmap">Goal and roadmap</a></li>
+  <li><a href="#a-single-neuron-weighted-sum-plus-sigmoid" id="toc-a-single-neuron-weighted-sum-plus-sigmoid" class="nav-link" data-scroll-target="#a-single-neuron-weighted-sum-plus-sigmoid">A single neuron: weighted sum plus sigmoid</a></li>
+  <li><a href="#from-neurons-to-layers" id="toc-from-neurons-to-layers" class="nav-link" data-scroll-target="#from-neurons-to-layers">From neurons to layers</a></li>
+  <li><a href="#measuring-mistakes-with-a-cost-function" id="toc-measuring-mistakes-with-a-cost-function" class="nav-link" data-scroll-target="#measuring-mistakes-with-a-cost-function">Measuring mistakes with a cost function</a></li>
+  <li><a href="#gradient-descent-update" id="toc-gradient-descent-update" class="nav-link" data-scroll-target="#gradient-descent-update">Gradient descent update</a></li>
+  <li><a href="#mini-batch-stochastic-gradient-descent" id="toc-mini-batch-stochastic-gradient-descent" class="nav-link" data-scroll-target="#mini-batch-stochastic-gradient-descent">Mini-batch stochastic gradient descent</a></li>
+  <li><a href="#backpropagation-why-it-is-needed" id="toc-backpropagation-why-it-is-needed" class="nav-link" data-scroll-target="#backpropagation-why-it-is-needed">Backpropagation: why it is needed</a></li>
+  <li><a href="#layer-notation" id="toc-layer-notation" class="nav-link" data-scroll-target="#layer-notation">Layer notation</a></li>
+  <li><a href="#the-four-backpropagation-equations" id="toc-the-four-backpropagation-equations" class="nav-link" data-scroll-target="#the-four-backpropagation-equations">The four backpropagation equations</a></li>
+  <li><a href="#where-the-equations-come-from" id="toc-where-the-equations-come-from" class="nav-link" data-scroll-target="#where-the-equations-come-from">Where the equations come from</a></li>
+  <li><a href="#backpropagation-as-an-algorithm" id="toc-backpropagation-as-an-algorithm" class="nav-link" data-scroll-target="#backpropagation-as-an-algorithm">Backpropagation as an algorithm</a></li>
+  <li><a href="#how-this-matches-the-code" id="toc-how-this-matches-the-code" class="nav-link" data-scroll-target="#how-this-matches-the-code">How this matches the code</a></li>
+  <li><a href="#why-backpropagation-is-efficient" id="toc-why-backpropagation-is-efficient" class="nav-link" data-scroll-target="#why-backpropagation-is-efficient">Why backpropagation is efficient</a></li>
+  <li><a href="#matrix-multiplication-note" id="toc-matrix-multiplication-note" class="nav-link" data-scroll-target="#matrix-multiplication-note">Matrix multiplication note</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/04Maksimka/TimeAnalysis-Research/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">Math Behind Neural Networks</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li></ul></div></div>
+  <div class="quarto-categories">
+    <div class="quarto-category">ML algorithms</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    A NumPy-first walkthrough of neural-network math, mini-batch SGD, and backpropagation on MNIST.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>TimeAnalysis Team </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">June 18, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="goal-and-roadmap" class="level2">
+<h2 class="anchored" data-anchor-id="goal-and-roadmap">Goal and roadmap</h2>
+<p>We will learn the core math behind neural networks by solving a concrete task: teaching a computer to recognize handwritten digits from MNIST. Each image is 28 by 28 pixels, so the network receives 784 input numbers. It returns 10 output activations, one for each digit from 0 to 9.</p>
+<p>The notebook follows this path:</p>
+<ol type="1">
+<li>define a single artificial neuron and the sigmoid activation;</li>
+<li>stack neurons into a multilayer perceptron (MLP);</li>
+<li>measure mistakes with a cost function;</li>
+<li>minimize that cost with mini-batch stochastic gradient descent;</li>
+<li>derive backpropagation, the algorithm that computes all gradients efficiently.</li>
+</ol>
+<p>The implementation is intentionally small: no deep-learning framework, just NumPy and the chain rule.</p>
+<p>This notebook is based on Michael Nielsen’s online book <a href="http://neuralnetworksanddeeplearning.com/chap1.html">Neural Networks and Deep Learning</a>, with extra connective explanation around notation, SGD, and backpropagation.</p>
+</section>
+<section id="a-single-neuron-weighted-sum-plus-sigmoid" class="level2">
+<h2 class="anchored" data-anchor-id="a-single-neuron-weighted-sum-plus-sigmoid">A single neuron: weighted sum plus sigmoid</h2>
+<p>A neuron first computes a weighted sum of its inputs and a bias,</p>
+<p><span class="math display">\[
+z = w \cdot x + b,
+\]</span></p>
+<p>and then passes that number through an activation function. Here we use the sigmoid</p>
+<p><span class="math display">\[
+\sigma(z) = \frac{1}{1 + e^{-z}}.
+\]</span></p>
+<p>The sigmoid maps any real value to the interval <span class="math inline">\((0, 1)\)</span>. Its derivative has a convenient form,</p>
+<p><span class="math display">\[
+\sigma'(z) = \sigma(z)(1 - \sigma(z)),
+\]</span></p>
+<p>which is one reason it is friendly for a first backpropagation implementation.</p>
+<div id="64ca3b27" class="cell" data-execution_count="18">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.graph_objects <span class="im">as</span> go</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> plotly.subplots <span class="im">import</span> make_subplots</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> HTML</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> show_plot(fig: go.Figure, height: <span class="bu">int</span> <span class="op">=</span> <span class="dv">500</span>) <span class="op">-&gt;</span> HTML:</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Render Plotly as saved HTML so Quarto can publish the output."""</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    fig.update_layout(</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>        height<span class="op">=</span>height,</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>        margin<span class="op">=</span>{<span class="st">"l"</span>: <span class="dv">40</span>, <span class="st">"r"</span>: <span class="dv">30</span>, <span class="st">"t"</span>: <span class="dv">70</span>, <span class="st">"b"</span>: <span class="dv">40</span>},</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> HTML(fig.to_html(include_plotlyjs<span class="op">=</span><span class="st">"cdn"</span>, full_html<span class="op">=</span><span class="va">False</span>))</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> np.linspace(<span class="op">-</span><span class="dv">7</span>, <span class="dv">7</span>, <span class="dv">100</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="0409d6ec" class="cell" data-execution_count="19">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sigmoid(x: np.ndarray):</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Get sigmoid function."""</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">1</span> <span class="op">/</span> (<span class="dv">1</span> <span class="op">+</span> np.exp(<span class="op">-</span>x))</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sigmoid_prime(x: np.ndarray):</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Return the derivative of the sigmoid function."""</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> sigmoid(x) <span class="op">*</span> (<span class="dv">1</span> <span class="op">-</span> sigmoid(x))</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> make_subplots(rows<span class="op">=</span><span class="dv">2</span>, cols<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>fig.add_trace(go.Scatter(x<span class="op">=</span>x, y<span class="op">=</span>sigmoid(x), mode<span class="op">=</span><span class="st">'lines'</span>, name<span class="op">=</span><span class="st">'sigmoid'</span>), row<span class="op">=</span><span class="dv">1</span>, col<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>fig.add_trace(go.Scatter(x<span class="op">=</span>x, y<span class="op">=</span>sigmoid_prime(x), mode<span class="op">=</span><span class="st">'lines'</span>, name<span class="op">=</span><span class="st">'prime'</span>), row<span class="op">=</span><span class="dv">2</span>, col<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>fig.update_layout( </span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="st">"Sigmoid and its derivative"</span>,</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    width<span class="op">=</span><span class="dv">900</span>,</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    height<span class="op">=</span><span class="dv">600</span>,</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>show_plot(fig)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="19">
+<div>                        <script>window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.5.0.min.js" integrity="sha256-fHbNLP+GlIXN+efbQec78UkemUz3NJp7UmfGxC1tNxs=" crossorigin="anonymous"></script>                <div id="98f14b10-b5ed-42e1-aeb4-ced19370d055" class="plotly-graph-div" style="height:500px; width:900px;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("98f14b10-b5ed-42e1-aeb4-ced19370d055")) {                    Plotly.newPlot(                        "98f14b10-b5ed-42e1-aeb4-ced19370d055",                        [{"mode":"lines","name":"sigmoid","x":{"dtype":"f8","bdata":"AAAAAAAAHMDFvJ0hMW8bwIl5O0Ni3hrATjbZZJNNGsAS83aGxLwZwNevFKj1KxnAm2yyySabGMBgKVDrVwoYwCTm7QyJeRfA6aKLLrroFsCtXylQ61cWwHIcx3EcxxXANtlkk002FcD7lQK1fqUUwMBSoNavFBTAhA8++OCDE8BIzNsZEvMSwA2JeTtDYhLA0kUXXXTREcCWArV+pUARwFq\u002fUqDWrxDAH3zwwQcfEMDHcRzHcRwPwFDrVwrU+g3A2mSTTTbZDMBj3s6QmLcLwOxXCtT6lQrAddFFF110CcD+SoFav1IIwIbEvJ0hMQfAED744IMPBsCYtzMk5u0EwCIxb2dIzAPArKqqqqqqAsA0JObtDIkBwL6dITFvZwDAjC666KKL\u002fr+gITFvZ0j8v7AUqPUrBfq\u002fxAcffPDB97\u002fU+pUCtX71v+jtDIl5O\u002fO\u002f+OCDDz748L8YqPUrBWrtvziO4ziO4+i\u002fYHTRRRdd5L8AtX6lQK3fv1CBWr9SoNa\u002fQJtssskmy7+AZ0jM2xmyv0BnSMzbGbI\u002fIJtssskmyz9AgVq\u002fUqDWPwC1fqVArd8\u002fWHTRRRdd5D84juM4juPoPxCo9SsFau0\u002f+OCDDz748D\u002fo7QyJeTvzP9D6lQK1fvU\u002fwAcffPDB9z+wFKj1KwX6P6AhMW9nSPw\u002fiC666KKL\u002fj+8nSExb2cAQDQk5u0MiQFAqKqqqqqqAkAgMW9nSMwDQJi3MyTm7QRAED744IMPBkCExLydITEHQPxKgVq\u002fUghAdNFFF110CUDsVwrU+pUKQGDezpCYtwtA2GSTTTbZDEBQ61cK1PoNQMhxHMdxHA9AHnzwwQcfEEBav1Kg1q8QQJYCtX6lQBFA0EUXXXTREUAMiXk7Q2ISQEjM2xkS8xJAhA8++OCDE0C+UqDWrxQUQPqVArV+pRRANtlkk002FUByHMdxHMcVQKxfKVDrVxZA6KKLLrroFkAk5u0MiXkXQGApUOtXChhAmmyyySabGEDWrxSo9SsZQBLzdobEvBlATDbZZJNNGkCIeTtDYt4aQMS8nSExbxtAAAAAAAAAHEA="},"y":{"dtype":"f8","bdata":"iRHfinPaTT9hEg0gETFRP5p4yr\u002fJzFM\u002fhPA+aKzNVj\u002fNE40IAUNaPzi3pJ5aPl4\u002fC2LAB\u002fdpYT+aJK63eg1kP9bWra8QF2c\u002fSf4uKQ2Waj9Me7HbCZxuP4IJ18ycnnE\u002fvHntjmNIdD8FbKsgoFh3P9u+Xm6H3no\u002fPe3YSoDrfj8PTNWyt8mBPw3yD+yFdoQ\u002fwwP3Vx6Jhz\u002fd4k\u002fVPxCLP4+YeYOsHI8\u002fiNtl+LLgkT9Oot999omUP9avhTVClpc\u002fe\u002fMnWzoTmz+sjQFjJxCfP56s4qMKz6E\u002fbUoQV\u002fdnpD9LDTWPSF2nP3AU\u002fmlruqo\u002fi5V65ciLrj\u002ff6PW0XG+xP5T\u002fCqe14LM\u002fQ86Uelyhtj+9Mzd79bi5P39aPmsxL70\u002fbvbg1sqFwD9PO0Emm6rCP2omJOYwCcU\u002f8cp5ByCkxz8Pl36bM33KP5QzkMQ1lc0\u002fwifXXdx10D9BYK7Bcj\u002fSP+NAgs2qJdQ\u002fbn4Lnv4l1j\u002fBDgGTFT3YP6FZqc\u002fQZto\u002fmqHJD2We3D98De0igd7eP0B5iW6\u002fkOA\u002fMS8beM2w4T8tUyuYl8ziP6B4fzZ14eM\u002fx0D6sADt5D+P3z6ZKu3lP97PKJ9G4OY\u002fH2wU0RHF5z8b89uOsproPztaIBmzYOk\u002fQ40h\u002fvcW6j9l9nbGs73qPyyxbzZZVes\u002fY8JHSo3e6z+vNJjSGVrsP4gZmVDhyOw\u002fNmatcNQr7T8NoB5L6YPtP+NCYWkU0u0\u002fplaocUMX7j+4HmBJWVTuPyqvDHcriu4\u002fWPuOioC57j821cFVD+PuP5Pz58R+B+8\u002fZcAmLWYn7z+B0lPuTUPvP+0CEUywW+8\u002fJNE8aPpw7z+dGfJNjYPvP3TAqgC\u002fk+8\u002f8iOghtuh7z84wE\u002foJa7vP8+qNCHZuO8\u002fJU5q\u002fyjC7z+CQiPxQsrvPyipvr9O0e8\u002fDSXiOG\u002fX7z\u002fuUWbGwtzvP4ROJPZj4e8\u002fA9HW8mnl7z8pUlDv6OjvP9tRSIXy6+8\u002fnT\u002f4CJbu7z+krbDS4PDvP3a5e3\u002fe8u8\u002fiODLKZn07z\u002fDGiCbGfbvP3b5b3dn9+8\u002fPEgdY4n47z8="},"type":"scatter","xaxis":"x","yaxis":"y"},{"mode":"lines","name":"prime","x":{"dtype":"f8","bdata":"AAAAAAAAHMDFvJ0hMW8bwIl5O0Ni3hrATjbZZJNNGsAS83aGxLwZwNevFKj1KxnAm2yyySabGMBgKVDrVwoYwCTm7QyJeRfA6aKLLrroFsCtXylQ61cWwHIcx3EcxxXANtlkk002FcD7lQK1fqUUwMBSoNavFBTAhA8++OCDE8BIzNsZEvMSwA2JeTtDYhLA0kUXXXTREcCWArV+pUARwFq\u002fUqDWrxDAH3zwwQcfEMDHcRzHcRwPwFDrVwrU+g3A2mSTTTbZDMBj3s6QmLcLwOxXCtT6lQrAddFFF110CcD+SoFav1IIwIbEvJ0hMQfAED744IMPBsCYtzMk5u0EwCIxb2dIzAPArKqqqqqqAsA0JObtDIkBwL6dITFvZwDAjC666KKL\u002fr+gITFvZ0j8v7AUqPUrBfq\u002fxAcffPDB97\u002fU+pUCtX71v+jtDIl5O\u002fO\u002f+OCDDz748L8YqPUrBWrtvziO4ziO4+i\u002fYHTRRRdd5L8AtX6lQK3fv1CBWr9SoNa\u002fQJtssskmy7+AZ0jM2xmyv0BnSMzbGbI\u002fIJtssskmyz9AgVq\u002fUqDWPwC1fqVArd8\u002fWHTRRRdd5D84juM4juPoPxCo9SsFau0\u002f+OCDDz748D\u002fo7QyJeTvzP9D6lQK1fvU\u002fwAcffPDB9z+wFKj1KwX6P6AhMW9nSPw\u002fiC666KKL\u002fj+8nSExb2cAQDQk5u0MiQFAqKqqqqqqAkAgMW9nSMwDQJi3MyTm7QRAED744IMPBkCExLydITEHQPxKgVq\u002fUghAdNFFF110CUDsVwrU+pUKQGDezpCYtwtA2GSTTTbZDEBQ61cK1PoNQMhxHMdxHA9AHnzwwQcfEEBav1Kg1q8QQJYCtX6lQBFA0EUXXXTREUAMiXk7Q2ISQEjM2xkS8xJAhA8++OCDE0C+UqDWrxQUQPqVArV+pRRANtlkk002FUByHMdxHMcVQKxfKVDrVxZA6KKLLrroFkAk5u0MiXkXQGApUOtXChhAmmyyySabGEDWrxSo9SsZQBLzdobEvBlATDbZZJNNGkCIeTtDYt4aQMS8nSExbxtAAAAAAAAAHEA="},"y":{"dtype":"f8","bdata":"ISuyGX3TTT\u002fGzVXpcixRP731t5ipxlM\u002f+\u002fjAbIzFVj9B949ROjhaPx3p7+wPMF4\u002fxY9jEn1gYT8S\u002f5rY6QBkP7RHEXdnBmc\u002faqowlPZ\u002faj95bVVQwn5uP1LyRJs1i3E\u002fNbaFTq0udD9D1WVpjzZ3P9BZRR9osXo\u002fcaRzn7+vfj8I7d2HKqKBP5gsfHIuQoQ\u002fin9Nu+BDhz8NtW4FsrSKP8CJuOOto44\u002floW6uMuQkT8W4oRGgCCUP1w4tC8sC5c\u002fzaLravZbmj+4WUa\u002f7B6eP0Pi5TV3MKE\u002ff4DH58KXoz9k+nALVkymP9+6GKE4Vak\u002fx8qyMEG5rD8hwGbzYT+wP8Mk2nGVVbI\u002fT6MP4DqhtD8051nnTyO3P95Ow4V327k\u002fZ3vBkJjHvD9TbUo9eOO\u002fP4E+rTEslME\u002fLdquElJGwz\u002fMp3It3AHFP4imOnjrvsY\u002fDmd7RCp0yD8QbQKcBhfKP8TGlsMTnMs\u002fbcQPBpL3zD\u002fEhzEvFh7OPyUZYfVDBc8\u002fmlW3PImkzz\u002fX5o8CxfXPP9fmjwLF9c8\u002fm1W3PImkzz8mGWH1QwXPP8OHMS8WHs4\u002fcMQPBpL3zD\u002fExpbDE5zLPxJtApwGF8o\u002fDmd7RCp0yD+Ipjp4677GP8+nci3cAcU\u002fL9quElJGwz+CPq0xLJTBP1VtSj14478\u002fcHvBkJjHvD\u002flTsOFd9u5PzfnWedPI7c\u002fWaMP4DqhtD\u002fGJNpxlVWyPynAZvNhP7A\u002f2cqyMEG5rD\u002ftuhihOFWpP3j6cAtWTKY\u002fkYDH58KXoz9E4uU1dzChP6xZRr\u002fsHp4\u002fs6LravZbmj9mOLQvLAuXPyfihEaAIJQ\u002fj4W6uMuQkT\u002fvibjjraOOPy61bgWytIo\u002fSH9Nu+BDhz+LLHxyLkKEPzjt3YcqooE\u002fsqRzn7+vfj\u002f1WUUfaLF6Pz7VZWmPNnc\u002f+bWFTq0udD\u002fR8USbNYtxPyxuVVDCfm4\u002fI6kwlPZ\u002faj\u002feRxF3ZwZnP3j\u002fmtjpAGQ\u002fuZBjEn1gYT\u002fl6e\u002fsDzBeP3T3j1E6OFo\u002fd\u002fjAbIzFVj8i97eYqcZTP2TPVelyLFE\u002fmSmyGX3TTT8="},"type":"scatter","xaxis":"x2","yaxis":"y2"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"xaxis":{"anchor":"y","domain":[0.0,1.0]},"yaxis":{"anchor":"x","domain":[0.575,1.0]},"xaxis2":{"anchor":"y2","domain":[0.0,1.0]},"yaxis2":{"anchor":"x2","domain":[0.0,0.425]},"title":{"text":"Sigmoid and its derivative"},"width":900,"height":500,"margin":{"l":40,"r":30,"t":70,"b":40}},                        {"responsive": true}                    )                };            </script>        </div>
+</div>
+</div>
+</section>
+<section id="from-neurons-to-layers" class="level2">
+<h2 class="anchored" data-anchor-id="from-neurons-to-layers">From neurons to layers</h2>
+<p>A neural network is built by arranging neurons into layers. The leftmost layer is the <strong>input layer</strong>; for MNIST it contains 784 values, one per pixel. The rightmost layer is the <strong>output layer</strong>; here it contains 10 neurons, one per possible digit. Any layer between them is a <strong>hidden layer</strong>.</p>
+<p>The word “hidden” does not mean mysterious. It only means that the desired labels do not directly tell us what those neurons should output; the network has to discover useful intermediate features during training.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="data/output.svg" class="img-fluid figure-img"></p>
+<figcaption>neural network</figcaption>
+</figure>
+</div>
+<p>The network above is a <strong>multilayer perceptron</strong> (MLP): a feed-forward network where every neuron in one layer is connected to every neuron in the next layer. “Feed-forward” means information moves left to right during prediction; there are no cycles or recurrent connections.</p>
+<p>A layer-size tuple such as <code>(784, 30, 10)</code> means: 784 input values, one hidden layer with 30 neurons, and 10 output neurons.</p>
+</section>
+<section id="measuring-mistakes-with-a-cost-function" class="level2">
+<h2 class="anchored" data-anchor-id="measuring-mistakes-with-a-cost-function">Measuring mistakes with a cost function</h2>
+<p>Let <span class="math inline">\(a(x)\)</span> be the network output for an input image <span class="math inline">\(x\)</span>, and let <span class="math inline">\(y(x)\)</span> be the desired one-hot vector. For example, if the image is a 7, then the target vector has a 1 in position 7 and 0 everywhere else.</p>
+<p>We define the mean squared error (also called the quadratic cost) as</p>
+<p><span class="math display">\[
+C(w, b) = \frac{1}{2n}\sum_x \lVert y(x) - a(x) \rVert^2,
+\]</span></p>
+<p>where <span class="math inline">\(n\)</span> is the number of training examples. The factor <span class="math inline">\(\frac{1}{2}\)</span> is not essential; it just cancels the 2 that appears when differentiating the squared norm.</p>
+<p>When <span class="math inline">\(C\)</span> is small, the network’s outputs are close to the desired labels. Training means changing the weights <span class="math inline">\(w\)</span> and biases <span class="math inline">\(b\)</span> so that this cost becomes smaller.</p>
+</section>
+<section id="gradient-descent-update" class="level2">
+<h2 class="anchored" data-anchor-id="gradient-descent-update">Gradient descent update</h2>
+<p>For each parameter we move in the direction that decreases the cost most quickly:</p>
+<p><span class="math display">\[
+w_k \leftarrow w_k - \eta \frac{\partial C}{\partial w_k}
+\]</span></p>
+<p><span class="math display">\[
+b_k \leftarrow b_k - \eta \frac{\partial C}{\partial b_k}
+\]</span></p>
+<p>Here <span class="math inline">\(\eta\)</span> is the learning rate. If it is too small, learning is slow; if it is too large, the update can jump over good solutions or make training unstable.</p>
+<p>Repeating this update is the basic “roll downhill” picture of gradient descent. The important practical question is how to compute the gradient.</p>
+<p>Computing the exact gradient over the full training set after every tiny update is expensive, so neural networks usually use a cheaper approximation: mini-batch stochastic gradient descent.</p>
+</section>
+<section id="mini-batch-stochastic-gradient-descent" class="level2">
+<h2 class="anchored" data-anchor-id="mini-batch-stochastic-gradient-descent">Mini-batch stochastic gradient descent</h2>
+<p>Stochastic gradient descent randomly picks a small mini-batch of <span class="math inline">\(m\)</span> training examples. Call them <span class="math inline">\(X_1, X_2, \ldots, X_m\)</span>. The average gradient on this mini-batch is used as an estimate of the full training-set gradient:</p>
+<p><span class="math display">\[
+\frac{1}{m} \sum_{j=1}^m \nabla C_{X_j} \approx \frac{1}{n} \sum_x \nabla C_x = \nabla C.
+\]</span></p>
+<p>The update is therefore noisy, but much cheaper. That noise is often useful: it lets training make frequent progress and sometimes helps the optimizer avoid shallow bad regions.</p>
+<p>In the code below, one <strong>epoch</strong> means one pass over the shuffled training data. Each mini-batch calls <code>backprop</code> once per example, accumulates the gradients, averages them, and applies the update.</p>
+<div id="846ff8af" class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> tqdm <span class="im">import</span> tqdm</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="842a8c98" class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Network(<span class="bu">object</span>):</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, sizes: <span class="bu">tuple</span>):</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Create a network object.</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co">        </span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co">        :param sizes: Sizes of the corresponding layers.</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co">        """</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.num_layers <span class="op">=</span> <span class="bu">len</span>(sizes)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.biases <span class="op">=</span> [np.random.randn(y, <span class="dv">1</span>) <span class="cf">for</span> y <span class="kw">in</span> sizes[<span class="dv">1</span>:]] <span class="co"># skip 0 layer, it is an input layer</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.weights <span class="op">=</span> [</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>            np.random.randn(y, x)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> x, y <span class="kw">in</span> <span class="bu">zip</span>(sizes[:<span class="op">-</span><span class="dv">1</span>], sizes[<span class="dv">1</span>:])</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> feed_forward(<span class="va">self</span>, <span class="bu">input</span>: np.array):</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Return the output of the network.</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="co">        </span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="co">        :param input: input to the network</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="co">        """</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>        output <span class="op">=</span> <span class="bu">input</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> b, w <span class="kw">in</span> <span class="bu">zip</span>(<span class="va">self</span>.biases, <span class="va">self</span>.weights):</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>            output <span class="op">=</span> sigmoid(np.dot(w, output) <span class="op">+</span> b)</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> output</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> SGD(</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>,</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>        training_data,</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>        epochs,</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>        mini_batch_size,</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>        learning_rate,</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>        test_data<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>        ):</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Train the neural network using mini-batch stochastic gradient descent.</span></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a><span class="co">        :param training_data: List of pairs ``(x, y)``, where ``x`` is a training input</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a><span class="co">        and ``y`` is the desired output.</span></span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a><span class="co">        :param epochs: Number of training epochs.</span></span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a><span class="co">        :param mini_batch_size: Size of each mini-batch.</span></span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a><span class="co">        :param learning_rate: Learning rate used during gradient descent.</span></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a><span class="co">        :param test_data: Optional test dataset used to evaluate the network after each epoch.</span></span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a><span class="co">        """</span></span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>        training_data_size <span class="op">=</span> <span class="bu">len</span>(training_data)</span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> test_data <span class="kw">is</span> <span class="kw">not</span> <span class="va">None</span>:</span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>            test_data_size <span class="op">=</span> <span class="bu">len</span>(test_data)</span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> epoch_index <span class="kw">in</span> <span class="bu">range</span>(epochs):</span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>            np.random.shuffle(training_data)</span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>            mini_batches <span class="op">=</span> [</span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>                training_data[start_index: start_index <span class="op">+</span> mini_batch_size]</span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> start_index <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, training_data_size, mini_batch_size)</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>            ]</span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> mini_batch <span class="kw">in</span> mini_batches:</span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>                <span class="va">self</span>.update_mini_batch(mini_batch, learning_rate)</span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> test_data <span class="kw">is</span> <span class="kw">not</span> <span class="va">None</span>:</span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>                correct_predictions <span class="op">=</span> <span class="va">self</span>.evaluate(test_data)</span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>                <span class="bu">print</span>(<span class="ss">f"Epoch </span><span class="sc">{</span>epoch_index<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>correct_predictions<span class="sc">}</span><span class="ss"> / </span><span class="sc">{</span>test_data_size<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span>:</span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>                <span class="bu">print</span>(<span class="ss">f"Epoch </span><span class="sc">{</span>epoch_index<span class="sc">}</span><span class="ss"> complete"</span>)</span>
+<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> update_mini_batch(<span class="va">self</span>, mini_batch, eta):</span>
+<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Update weights and biases by applying GD using backprop to a single mini batch.</span></span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a><span class="co">        The "mini_batch" is a list of tuples "(x, y)", and "eta" is the learning rate.</span></span>
+<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a><span class="co">        """</span></span>
+<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a>        nabla_b <span class="op">=</span> [np.zeros_like(b) <span class="cf">for</span> b <span class="kw">in</span> <span class="va">self</span>.biases]</span>
+<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>        nabla_w <span class="op">=</span> [np.zeros_like(w) <span class="cf">for</span> w <span class="kw">in</span> <span class="va">self</span>.weights]</span>
+<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> x, y <span class="kw">in</span> mini_batch:</span>
+<span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a>            delta_nabla_b, delta_nabla_w <span class="op">=</span> <span class="va">self</span>.backprop(x, y)</span>
+<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>            nabla_b <span class="op">=</span> [nb <span class="op">+</span> dnb <span class="cf">for</span> nb, dnb <span class="kw">in</span> <span class="bu">zip</span>(nabla_b, delta_nabla_b)]</span>
+<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>            nabla_w <span class="op">=</span> [nw <span class="op">+</span> dnw <span class="cf">for</span> nw, dnw <span class="kw">in</span> <span class="bu">zip</span>(nabla_w, delta_nabla_w)]</span>
+<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.weights <span class="op">=</span> [</span>
+<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>            w <span class="op">-</span> (eta <span class="op">/</span> <span class="bu">len</span>(mini_batch)) <span class="op">*</span> nw </span>
+<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> w, nw <span class="kw">in</span> <span class="bu">zip</span>(<span class="va">self</span>.weights, nabla_w)</span>
+<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.biases <span class="op">=</span> [</span>
+<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>            b <span class="op">-</span> (eta<span class="op">/</span><span class="bu">len</span>(mini_batch)) <span class="op">*</span> nb </span>
+<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> b, nb <span class="kw">in</span> <span class="bu">zip</span>(<span class="va">self</span>.biases, nabla_b)</span>
+<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a>            ]</span>
+<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> backprop(<span class="va">self</span>, x, y):</span>
+<span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Return a tuple ``(nabla_b, nabla_w)`` representing the</span></span>
+<span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a><span class="co">        gradient for the cost function C_x.</span></span>
+<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a><span class="co">        ``nabla_b`` and ``nabla_w`` are layer-by-layer lists of numpy arrays,</span></span>
+<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a><span class="co">        similar to ``self.biases`` and ``self.weights``.</span></span>
+<span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a><span class="co">        """</span></span>
+<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a>        nabla_b <span class="op">=</span> [np.zeros(b.shape) <span class="cf">for</span> b <span class="kw">in</span> <span class="va">self</span>.biases]</span>
+<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a>        nabla_w <span class="op">=</span> [np.zeros(w.shape) <span class="cf">for</span> w <span class="kw">in</span> <span class="va">self</span>.weights]</span>
+<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a>        <span class="co"># feedforward</span></span>
+<span id="cb4-97"><a href="#cb4-97" aria-hidden="true" tabindex="-1"></a>        activation <span class="op">=</span> x</span>
+<span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a>        activations <span class="op">=</span> [x] <span class="co"># list to store all the activations, layer by layer</span></span>
+<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a>        zs <span class="op">=</span> [] <span class="co"># list to store all the z vectors, layer by layer</span></span>
+<span id="cb4-100"><a href="#cb4-100" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> b, w <span class="kw">in</span> <span class="bu">zip</span>(<span class="va">self</span>.biases, <span class="va">self</span>.weights):</span>
+<span id="cb4-101"><a href="#cb4-101" aria-hidden="true" tabindex="-1"></a>            z <span class="op">=</span> np.dot(w, activation) <span class="op">+</span> b</span>
+<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a>            zs.append(z)</span>
+<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a>            activation <span class="op">=</span> sigmoid(z)</span>
+<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a>            activations.append(activation)</span>
+<span id="cb4-105"><a href="#cb4-105" aria-hidden="true" tabindex="-1"></a>        <span class="co"># backward pass</span></span>
+<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a>        delta <span class="op">=</span> <span class="va">self</span>.cost_derivative(activations[<span class="op">-</span><span class="dv">1</span>], y) <span class="op">*</span> <span class="op">\</span></span>
+<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a>            sigmoid_prime(zs[<span class="op">-</span><span class="dv">1</span>])</span>
+<span id="cb4-108"><a href="#cb4-108" aria-hidden="true" tabindex="-1"></a>        nabla_b[<span class="op">-</span><span class="dv">1</span>] <span class="op">=</span> delta</span>
+<span id="cb4-109"><a href="#cb4-109" aria-hidden="true" tabindex="-1"></a>        nabla_w[<span class="op">-</span><span class="dv">1</span>] <span class="op">=</span> np.dot(delta, activations[<span class="op">-</span><span class="dv">2</span>].transpose())</span>
+<span id="cb4-110"><a href="#cb4-110" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Note that the variable l in the loop below is used a little</span></span>
+<span id="cb4-111"><a href="#cb4-111" aria-hidden="true" tabindex="-1"></a>        <span class="co"># differently to the notation in Chapter 2 of the book.  Here,</span></span>
+<span id="cb4-112"><a href="#cb4-112" aria-hidden="true" tabindex="-1"></a>        <span class="co"># l = 1 means the last layer of neurons, l = 2 is the</span></span>
+<span id="cb4-113"><a href="#cb4-113" aria-hidden="true" tabindex="-1"></a>        <span class="co"># second-last layer, and so on.  It's a renumbering of the</span></span>
+<span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a>        <span class="co"># scheme in the book, used here to take advantage of the fact</span></span>
+<span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a>        <span class="co"># that Python can use negative indices in lists.</span></span>
+<span id="cb4-116"><a href="#cb4-116" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> l <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">2</span>, <span class="va">self</span>.num_layers):</span>
+<span id="cb4-117"><a href="#cb4-117" aria-hidden="true" tabindex="-1"></a>            z <span class="op">=</span> zs[<span class="op">-</span>l]</span>
+<span id="cb4-118"><a href="#cb4-118" aria-hidden="true" tabindex="-1"></a>            sp <span class="op">=</span> sigmoid_prime(z)</span>
+<span id="cb4-119"><a href="#cb4-119" aria-hidden="true" tabindex="-1"></a>            delta <span class="op">=</span> np.dot(<span class="va">self</span>.weights[<span class="op">-</span>l<span class="op">+</span><span class="dv">1</span>].transpose(), delta) <span class="op">*</span> sp</span>
+<span id="cb4-120"><a href="#cb4-120" aria-hidden="true" tabindex="-1"></a>            nabla_b[<span class="op">-</span>l] <span class="op">=</span> delta</span>
+<span id="cb4-121"><a href="#cb4-121" aria-hidden="true" tabindex="-1"></a>            nabla_w[<span class="op">-</span>l] <span class="op">=</span> np.dot(delta, activations[<span class="op">-</span>l<span class="op">-</span><span class="dv">1</span>].transpose())</span>
+<span id="cb4-122"><a href="#cb4-122" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> (nabla_b, nabla_w)</span>
+<span id="cb4-123"><a href="#cb4-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-124"><a href="#cb4-124" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> evaluate(<span class="va">self</span>, test_data):</span>
+<span id="cb4-125"><a href="#cb4-125" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Return the number of test inputs for which the neural</span></span>
+<span id="cb4-126"><a href="#cb4-126" aria-hidden="true" tabindex="-1"></a><span class="co">        network outputs the correct result. Note that the neural</span></span>
+<span id="cb4-127"><a href="#cb4-127" aria-hidden="true" tabindex="-1"></a><span class="co">        network's output is assumed to be the index of whichever</span></span>
+<span id="cb4-128"><a href="#cb4-128" aria-hidden="true" tabindex="-1"></a><span class="co">        neuron in the final layer has the highest activation."""</span></span>
+<span id="cb4-129"><a href="#cb4-129" aria-hidden="true" tabindex="-1"></a>        test_results <span class="op">=</span> [</span>
+<span id="cb4-130"><a href="#cb4-130" aria-hidden="true" tabindex="-1"></a>            (np.argmax(<span class="va">self</span>.feed_forward(x)), y)</span>
+<span id="cb4-131"><a href="#cb4-131" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> (x, y) <span class="kw">in</span> test_data</span>
+<span id="cb4-132"><a href="#cb4-132" aria-hidden="true" tabindex="-1"></a>            ]</span>
+<span id="cb4-133"><a href="#cb4-133" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="bu">sum</span>(<span class="bu">int</span>(x <span class="op">==</span> y) <span class="cf">for</span> (x, y) <span class="kw">in</span> test_results)</span>
+<span id="cb4-134"><a href="#cb4-134" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-135"><a href="#cb4-135" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> cost_derivative(<span class="va">self</span>, output_activations, y):</span>
+<span id="cb4-136"><a href="#cb4-136" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Return the vector of partial derivatives partial C_x /</span></span>
+<span id="cb4-137"><a href="#cb4-137" aria-hidden="true" tabindex="-1"></a><span class="co">        partial a for the output activations."""</span></span>
+<span id="cb4-138"><a href="#cb4-138" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> (output_activations <span class="op">-</span> y)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>The class stores one weight matrix for each pair of neighboring layers. If <code>sizes = (784, 30, 10)</code>, then:</p>
+<ul>
+<li><code>weights[0]</code> has shape <code>(30, 784)</code> and connects the input layer to the hidden layer;</li>
+<li><code>weights[1]</code> has shape <code>(10, 30)</code> and connects the hidden layer to the output layer;</li>
+<li><code>biases[0]</code> has shape <code>(30, 1)</code> and <code>biases[1]</code> has shape <code>(10, 1)</code>.</li>
+</ul>
+<p>In mathematical notation, <span class="math inline">\(w^l_{jk}\)</span> is the weight from neuron <span class="math inline">\(k\)</span> in layer <span class="math inline">\(l-1\)</span> to neuron <span class="math inline">\(j\)</span> in layer <span class="math inline">\(l\)</span>. This row/column convention matches <code>np.dot(w, activation) + b</code> in <code>feed_forward</code>.</p>
+<div id="a39bf0b4" class="cell" data-execution_count="33">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pickle</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> load_data(path: <span class="bu">str</span> <span class="op">|</span> Path <span class="op">=</span> <span class="st">"../data/mnist.pkl"</span>):</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co">    Load MNIST data from an unpacked pickle file.</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co">    :param path: Path to the unpacked MNIST pickle file, usually ``mnist.pkl``.</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co">    :return: Tuple ``(training_data, validation_data, test_data)``.</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    path <span class="op">=</span> Path(path)</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> path.<span class="bu">open</span>(<span class="st">"rb"</span>) <span class="im">as</span> <span class="bu">file</span>:</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>        training_data, validation_data, test_data <span class="op">=</span> pickle.load(</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>            <span class="bu">file</span>,</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>            encoding<span class="op">=</span><span class="st">"latin1"</span>,</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> training_data, validation_data, test_data</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> load_data_wrapper(path: <span class="bu">str</span> <span class="op">|</span> Path <span class="op">=</span> <span class="st">"../data/mnist.pkl"</span>):</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a><span class="co">    Load MNIST data and convert it to a format convenient for a neural network.</span></span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a><span class="co">    :param path: Path to the unpacked MNIST pickle file.</span></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a><span class="co">    :return: Tuple ``(training_data, validation_data, test_data)``.</span></span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a><span class="co">    ``training_data`` is a list of pairs ``(x, y)``, where:</span></span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a><span class="co">    - ``x`` has shape ``(784, 1)``</span></span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a><span class="co">    - ``y`` has shape ``(10, 1)`` and is a one-hot vector</span></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a><span class="co">    ``validation_data`` and ``test_data`` are lists of pairs ``(x, y)``, where:</span></span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a><span class="co">    - ``x`` has shape ``(784, 1)``</span></span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a><span class="co">    - ``y`` is an integer label from 0 to 9</span></span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a>    training_raw, validation_raw, test_raw <span class="op">=</span> load_data(path)</span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a>    training_inputs <span class="op">=</span> [</span>
+<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a>        np.reshape(image, (<span class="dv">784</span>, <span class="dv">1</span>))</span>
+<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> image <span class="kw">in</span> training_raw[<span class="dv">0</span>]</span>
+<span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-51"><a href="#cb5-51" aria-hidden="true" tabindex="-1"></a>    training_labels <span class="op">=</span> [</span>
+<span id="cb5-52"><a href="#cb5-52" aria-hidden="true" tabindex="-1"></a>        vectorized_result(label)</span>
+<span id="cb5-53"><a href="#cb5-53" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> label <span class="kw">in</span> training_raw[<span class="dv">1</span>]</span>
+<span id="cb5-54"><a href="#cb5-54" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-55"><a href="#cb5-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-56"><a href="#cb5-56" aria-hidden="true" tabindex="-1"></a>    training_data <span class="op">=</span> <span class="bu">list</span>(<span class="bu">zip</span>(training_inputs, training_labels))</span>
+<span id="cb5-57"><a href="#cb5-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-58"><a href="#cb5-58" aria-hidden="true" tabindex="-1"></a>    validation_inputs <span class="op">=</span> [</span>
+<span id="cb5-59"><a href="#cb5-59" aria-hidden="true" tabindex="-1"></a>        np.reshape(image, (<span class="dv">784</span>, <span class="dv">1</span>))</span>
+<span id="cb5-60"><a href="#cb5-60" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> image <span class="kw">in</span> validation_raw[<span class="dv">0</span>]</span>
+<span id="cb5-61"><a href="#cb5-61" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-62"><a href="#cb5-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-63"><a href="#cb5-63" aria-hidden="true" tabindex="-1"></a>    validation_data <span class="op">=</span> <span class="bu">list</span>(<span class="bu">zip</span>(validation_inputs, validation_raw[<span class="dv">1</span>]))</span>
+<span id="cb5-64"><a href="#cb5-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-65"><a href="#cb5-65" aria-hidden="true" tabindex="-1"></a>    test_inputs <span class="op">=</span> [</span>
+<span id="cb5-66"><a href="#cb5-66" aria-hidden="true" tabindex="-1"></a>        np.reshape(image, (<span class="dv">784</span>, <span class="dv">1</span>))</span>
+<span id="cb5-67"><a href="#cb5-67" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> image <span class="kw">in</span> test_raw[<span class="dv">0</span>]</span>
+<span id="cb5-68"><a href="#cb5-68" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-69"><a href="#cb5-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-70"><a href="#cb5-70" aria-hidden="true" tabindex="-1"></a>    test_data <span class="op">=</span> <span class="bu">list</span>(<span class="bu">zip</span>(test_inputs, test_raw[<span class="dv">1</span>]))</span>
+<span id="cb5-71"><a href="#cb5-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-72"><a href="#cb5-72" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> training_data, validation_data, test_data</span>
+<span id="cb5-73"><a href="#cb5-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-74"><a href="#cb5-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-75"><a href="#cb5-75" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> vectorized_result(label: <span class="bu">int</span>) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb5-76"><a href="#cb5-76" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb5-77"><a href="#cb5-77" aria-hidden="true" tabindex="-1"></a><span class="co">    Convert a digit label to a one-hot column vector.</span></span>
+<span id="cb5-78"><a href="#cb5-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-79"><a href="#cb5-79" aria-hidden="true" tabindex="-1"></a><span class="co">    :param label: Digit from 0 to 9.</span></span>
+<span id="cb5-80"><a href="#cb5-80" aria-hidden="true" tabindex="-1"></a><span class="co">    :return: A ``(10, 1)`` vector with 1.0 at the label position.</span></span>
+<span id="cb5-81"><a href="#cb5-81" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb5-82"><a href="#cb5-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-83"><a href="#cb5-83" aria-hidden="true" tabindex="-1"></a>    result <span class="op">=</span> np.zeros((<span class="dv">10</span>, <span class="dv">1</span>))</span>
+<span id="cb5-84"><a href="#cb5-84" aria-hidden="true" tabindex="-1"></a>    result[label] <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb5-85"><a href="#cb5-85" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> result</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="0e892bc9" class="cell" data-execution_count="37">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>training_data, validation_data, test_data <span class="op">=</span> load_data_wrapper(</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"data/mnist/mnist.pkl"</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="bu">len</span>(training_data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stderr">
+<pre><code>C:\Users\qweqw\AppData\Local\Temp\ipykernel_41244\2788249775.py:18: VisibleDeprecationWarning: dtype(): align should be passed as Python or NumPy boolean but got `align=0`. Did you mean to pass a tuple to create a subarray type? (Deprecated NumPy 2.4)
+  training_data, validation_data, test_data = pickle.load(</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="37">
+<pre><code>50000</code></pre>
+</div>
+</div>
+<p>Now train a model with <strong>one hidden layer of 30 neurons</strong>. This is not 30 hidden layers; the tuple <code>(784, 30, 10)</code> describes three layers total: input, hidden, and output.</p>
+<div id="d4dfba3d" class="cell" data-execution_count="44">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>net <span class="op">=</span> Network((<span class="dv">784</span>, <span class="dv">30</span>, <span class="dv">10</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="3eeee188" class="cell" data-execution_count="46">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>net.SGD(training_data, <span class="dv">40</span>, <span class="dv">10</span>, <span class="fl">3.0</span>, test_data<span class="op">=</span>test_data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stderr">
+<pre><code>  2%|▎         | 1/40 [00:03&lt;02:24,  3.70s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 0: 9476 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>  5%|▌         | 2/40 [00:07&lt;02:20,  3.70s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 1: 9459 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>  8%|▊         | 3/40 [00:11&lt;02:16,  3.70s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 2: 9474 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 10%|█         | 4/40 [00:14&lt;02:13,  3.70s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 3: 9495 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 12%|█▎        | 5/40 [00:18&lt;02:09,  3.69s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 4: 9494 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 15%|█▌        | 6/40 [00:22&lt;02:05,  3.70s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 5: 9513 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 18%|█▊        | 7/40 [00:25&lt;02:02,  3.71s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 6: 9521 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 20%|██        | 8/40 [00:29&lt;01:59,  3.74s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 7: 9493 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 22%|██▎       | 9/40 [00:33&lt;01:55,  3.74s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 8: 9489 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 25%|██▌       | 10/40 [00:37&lt;01:52,  3.74s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 9: 9488 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 28%|██▊       | 11/40 [00:40&lt;01:48,  3.74s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 10: 9509 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 30%|███       | 12/40 [00:44&lt;01:44,  3.73s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 11: 9523 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 32%|███▎      | 13/40 [00:48&lt;01:40,  3.73s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 12: 9507 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 35%|███▌      | 14/40 [00:52&lt;01:37,  3.73s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 13: 9500 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 38%|███▊      | 15/40 [00:55&lt;01:33,  3.73s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 14: 9510 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 40%|████      | 16/40 [00:59&lt;01:29,  3.73s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 15: 9513 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 42%|████▎     | 17/40 [01:03&lt;01:25,  3.73s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 16: 9511 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 45%|████▌     | 18/40 [01:07&lt;01:22,  3.74s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 17: 9530 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 48%|████▊     | 19/40 [01:10&lt;01:18,  3.75s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 18: 9503 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 50%|█████     | 20/40 [01:14&lt;01:15,  3.78s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 19: 9505 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 52%|█████▎    | 21/40 [01:18&lt;01:11,  3.77s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 20: 9505 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 55%|█████▌    | 22/40 [01:22&lt;01:07,  3.77s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 21: 9499 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 57%|█████▊    | 23/40 [01:26&lt;01:04,  3.82s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 22: 9516 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 60%|██████    | 24/40 [01:29&lt;01:00,  3.79s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 23: 9525 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 62%|██████▎   | 25/40 [01:33&lt;00:56,  3.77s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 24: 9511 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 65%|██████▌   | 26/40 [01:38&lt;00:56,  4.03s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 25: 9512 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 68%|██████▊   | 27/40 [01:42&lt;00:52,  4.06s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 26: 9487 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 70%|███████   | 28/40 [01:46&lt;00:48,  4.04s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 27: 9503 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 72%|███████▎  | 29/40 [01:50&lt;00:43,  3.95s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 28: 9522 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 75%|███████▌  | 30/40 [01:53&lt;00:38,  3.89s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 29: 9514 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 78%|███████▊  | 31/40 [01:57&lt;00:34,  3.85s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 30: 9501 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 80%|████████  | 32/40 [02:01&lt;00:30,  3.81s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 31: 9532 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 82%|████████▎ | 33/40 [02:05&lt;00:26,  3.80s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 32: 9526 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 85%|████████▌ | 34/40 [02:08&lt;00:22,  3.78s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 33: 9533 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 88%|████████▊ | 35/40 [02:12&lt;00:18,  3.76s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 34: 9529 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 90%|█████████ | 36/40 [02:16&lt;00:15,  3.76s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 35: 9522 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 92%|█████████▎| 37/40 [02:20&lt;00:11,  3.75s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 36: 9516 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 95%|█████████▌| 38/40 [02:23&lt;00:07,  3.78s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 37: 9513 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 98%|█████████▊| 39/40 [02:27&lt;00:03,  3.83s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 38: 9515 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>100%|██████████| 40/40 [02:31&lt;00:00,  3.80s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 39: 9512 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code></code></pre>
+</div>
+</div>
+<div id="8a44b1fa" class="cell" data-execution_count="48">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb92"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb92-1"><a href="#cb92-1" aria-hidden="true" tabindex="-1"></a>net <span class="op">=</span> Network([<span class="dv">784</span>, <span class="dv">100</span>, <span class="dv">10</span>])</span>
+<span id="cb92-2"><a href="#cb92-2" aria-hidden="true" tabindex="-1"></a>net.SGD(training_data, <span class="dv">30</span>, <span class="dv">10</span>, <span class="fl">3.0</span>, test_data<span class="op">=</span>test_data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stderr">
+<pre><code>  3%|▎         | 1/30 [00:19&lt;09:27, 19.56s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 0: 6624 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>  7%|▋         | 2/30 [00:41&lt;09:40, 20.74s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 1: 6791 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 10%|█         | 3/30 [01:00&lt;09:07, 20.27s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 2: 8458 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 13%|█▎        | 4/30 [01:22&lt;09:04, 20.93s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 3: 8527 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 17%|█▋        | 5/30 [01:42&lt;08:30, 20.40s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 4: 8566 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 20%|██        | 6/30 [02:01&lt;08:02, 20.12s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 5: 8608 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 23%|██▎       | 7/30 [02:21&lt;07:36, 19.84s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 6: 8739 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 27%|██▋       | 8/30 [02:41&lt;07:18, 19.91s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 7: 9565 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 30%|███       | 9/30 [03:00&lt;06:54, 19.75s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 8: 9545 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 33%|███▎      | 10/30 [03:20&lt;06:35, 19.78s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 9: 9574 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 37%|███▋      | 11/30 [03:40&lt;06:17, 19.86s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 10: 9596 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 40%|████      | 12/30 [04:00&lt;05:57, 19.86s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 11: 9592 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 43%|████▎     | 13/30 [04:20&lt;05:41, 20.11s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 12: 9605 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 47%|████▋     | 14/30 [04:41&lt;05:24, 20.26s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 13: 9629 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 50%|█████     | 15/30 [05:02&lt;05:05, 20.37s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 14: 9622 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 53%|█████▎    | 16/30 [05:22&lt;04:45, 20.40s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 15: 9625 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 57%|█████▋    | 17/30 [05:42&lt;04:22, 20.20s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 16: 9618 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 60%|██████    | 18/30 [06:02&lt;04:00, 20.04s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 17: 9615 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 63%|██████▎   | 19/30 [06:21&lt;03:39, 19.92s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 18: 9633 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 67%|██████▋   | 20/30 [06:41&lt;03:17, 19.77s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 19: 9634 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 70%|███████   | 21/30 [07:00&lt;02:57, 19.75s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 20: 9634 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 73%|███████▎  | 22/30 [07:20&lt;02:38, 19.83s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 21: 9637 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 77%|███████▋  | 23/30 [07:40&lt;02:18, 19.85s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 22: 9633 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 80%|████████  | 24/30 [08:02&lt;02:01, 20.29s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 23: 9632 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 83%|████████▎ | 25/30 [08:22&lt;01:41, 20.30s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 24: 9634 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 87%|████████▋ | 26/30 [08:41&lt;01:20, 20.01s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 25: 9629 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 90%|█████████ | 27/30 [09:01&lt;00:59, 19.94s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 26: 9642 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 93%|█████████▎| 28/30 [09:20&lt;00:39, 19.77s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 27: 9640 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 97%|█████████▋| 29/30 [09:40&lt;00:19, 19.61s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 28: 9640 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>100%|██████████| 30/30 [09:59&lt;00:00, 19.99s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 29: 9655 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code></code></pre>
+</div>
+</div>
+<div id="089ecf46" class="cell" data-execution_count="49">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb154"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb154-1"><a href="#cb154-1" aria-hidden="true" tabindex="-1"></a>net <span class="op">=</span> Network([<span class="dv">784</span>, <span class="dv">10</span>])</span>
+<span id="cb154-2"><a href="#cb154-2" aria-hidden="true" tabindex="-1"></a>net.SGD(training_data, <span class="dv">30</span>, <span class="dv">10</span>, <span class="fl">3.0</span>, test_data<span class="op">=</span>test_data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stderr">
+<pre><code>  3%|▎         | 1/30 [00:03&lt;01:39,  3.42s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 0: 4293 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>  7%|▋         | 2/30 [00:05&lt;01:08,  2.45s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 1: 5679 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 10%|█         | 3/30 [00:06&lt;00:57,  2.12s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 2: 5820 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 13%|█▎        | 4/30 [00:08&lt;00:51,  1.98s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 3: 7404 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 17%|█▋        | 5/30 [00:10&lt;00:47,  1.90s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 4: 7471 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 20%|██        | 6/30 [00:12&lt;00:44,  1.85s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 5: 7492 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 23%|██▎       | 7/30 [00:14&lt;00:46,  2.02s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 6: 7453 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 27%|██▋       | 8/30 [00:16&lt;00:42,  1.93s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 7: 7503 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 30%|███       | 9/30 [00:18&lt;00:39,  1.88s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 8: 7493 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 33%|███▎      | 10/30 [00:19&lt;00:36,  1.84s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 9: 7547 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 37%|███▋      | 11/30 [00:21&lt;00:34,  1.81s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 10: 8361 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 40%|████      | 12/30 [00:23&lt;00:32,  1.79s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 11: 8379 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 43%|████▎     | 13/30 [00:25&lt;00:30,  1.78s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 12: 8388 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 47%|████▋     | 14/30 [00:26&lt;00:28,  1.77s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 13: 8382 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 50%|█████     | 15/30 [00:28&lt;00:26,  1.76s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 14: 8382 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 53%|█████▎    | 16/30 [00:30&lt;00:24,  1.76s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 15: 8408 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 57%|█████▋    | 17/30 [00:32&lt;00:22,  1.75s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 16: 8389 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 60%|██████    | 18/30 [00:33&lt;00:21,  1.75s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 17: 8392 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 63%|██████▎   | 19/30 [00:35&lt;00:19,  1.75s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 18: 8398 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 67%|██████▋   | 20/30 [00:37&lt;00:17,  1.75s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 19: 8364 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 70%|███████   | 21/30 [00:39&lt;00:15,  1.75s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 20: 8406 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 73%|███████▎  | 22/30 [00:40&lt;00:14,  1.78s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 21: 8389 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 77%|███████▋  | 23/30 [00:42&lt;00:12,  1.77s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 22: 8405 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 80%|████████  | 24/30 [00:44&lt;00:10,  1.77s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 23: 8397 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 83%|████████▎ | 25/30 [00:46&lt;00:08,  1.76s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 24: 8387 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 87%|████████▋ | 26/30 [00:47&lt;00:07,  1.76s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 25: 8403 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 90%|█████████ | 27/30 [00:49&lt;00:05,  1.76s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 26: 8353 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 93%|█████████▎| 28/30 [00:51&lt;00:03,  1.75s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 27: 8388 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> 97%|█████████▋| 29/30 [00:53&lt;00:01,  1.75s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 28: 8403 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>100%|██████████| 30/30 [00:54&lt;00:00,  1.83s/it]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch 29: 8399 / 10000</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code></code></pre>
+</div>
+</div>
+</section>
+<section id="backpropagation-why-it-is-needed" class="level2">
+<h2 class="anchored" data-anchor-id="backpropagation-why-it-is-needed">Backpropagation: why it is needed</h2>
+<p>The <code>Network</code> class above calls <code>backprop</code> inside every mini-batch update. Backpropagation is the efficient way to compute the derivatives needed by gradient descent:</p>
+<p><span class="math display">\[
+\frac{\partial C}{\partial w^l_{jk}}, \qquad \frac{\partial C}{\partial b^l_j}.
+\]</span></p>
+<p>A naive approach would perturb one weight at a time and see how the cost changes. That would require a separate forward pass for every parameter. Backpropagation avoids this by reusing intermediate values from one forward pass and then applying the chain rule backward through the layers.</p>
+<p>Historically, the idea appeared before the 1980s, but the 1986 paper by David Rumelhart, Geoffrey Hinton, and Ronald Williams made its practical importance much clearer. Today it is the standard engine behind neural-network training.</p>
+</section>
+<section id="layer-notation" class="level2">
+<h2 class="anchored" data-anchor-id="layer-notation">Layer notation</h2>
+<p>Number the layers from <span class="math inline">\(0\)</span> to <span class="math inline">\(L\)</span>. Layer <span class="math inline">\(0\)</span> is the input layer; layer <span class="math inline">\(L\)</span> is the output layer.</p>
+<p>We use <span class="math inline">\(w^l_{jk}\)</span> for the weight from neuron <span class="math inline">\(k\)</span> in layer <span class="math inline">\(l-1\)</span> to neuron <span class="math inline">\(j\)</span> in layer <span class="math inline">\(l\)</span>.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="math_bihind_nn_files/figure-html/957951dc-1-image.png" class="img-fluid figure-img"></p>
+<figcaption>image.png</figcaption>
+</figure>
+</div>
+<p>We use similar notation for biases and activations:</p>
+<ul>
+<li><span class="math inline">\(b^l_j\)</span> is the bias of neuron <span class="math inline">\(j\)</span> in layer <span class="math inline">\(l\)</span>;</li>
+<li><span class="math inline">\(a^l_j\)</span> is the activation of neuron <span class="math inline">\(j\)</span> in layer <span class="math inline">\(l\)</span>;</li>
+<li><span class="math inline">\(a^0\)</span> is the input vector <span class="math inline">\(x\)</span>.</li>
+</ul>
+<p>It is also useful to name the pre-activation value <span class="math inline">\(z^l_j\)</span>, the weighted input before the sigmoid is applied.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="math_bihind_nn_files/figure-html/535b601f-1-image.png" class="img-fluid figure-img"></p>
+<figcaption>image.png</figcaption>
+</figure>
+</div>
+<p>For a single neuron, the computation in layer <span class="math inline">\(l\)</span> is</p>
+<p><span class="math display">\[
+z^l_j = \sum_k w^l_{jk} a^{l-1}_k + b^l_j,
+\]</span></p>
+<p>followed by</p>
+<p><span class="math display">\[
+a^l_j = \sigma(z^l_j).
+\]</span></p>
+<p>This is the same calculation performed in the <code>feed_forward</code> method.</p>
+<p>In matrix form, <span class="math inline">\(w^l\)</span> has shape <code>(number of neurons in layer l, number of neurons in layer l-1)</code>. The vectors <span class="math inline">\(b^l\)</span>, <span class="math inline">\(z^l\)</span>, and <span class="math inline">\(a^l\)</span> all have one row per neuron in layer <span class="math inline">\(l\)</span>.</p>
+<p>This shape convention is why the forward step is written as a matrix-vector product: rows of <span class="math inline">\(w^l\)</span> correspond to destination neurons, columns correspond to source neurons.</p>
+<p>With that notation the whole layer is</p>
+<p><span class="math display">\[
+z^l = w^l a^{l-1} + b^l,
+\]</span></p>
+<p>and</p>
+<p><span class="math display">\[
+a^l = \sigma(z^l),
+\]</span></p>
+<p>where <span class="math inline">\(\sigma\)</span> is applied element by element.</p>
+<p>For one training example, the quadratic cost is</p>
+<p><span class="math display">\[
+C_x = \frac{1}{2}\lVert y - a^L \rVert^2.
+\]</span></p>
+<p>The full cost <span class="math inline">\(C\)</span> is the average of <span class="math inline">\(C_x\)</span> over the training set. Backpropagation computes gradients for one example, and mini-batch SGD averages those gradients across the mini-batch before updating the parameters.</p>
+<p>The key intermediate quantity is the <strong>error</strong></p>
+<p><span class="math display">\[
+\delta^l_j = \frac{\partial C}{\partial z^l_j}.
+\]</span></p>
+<p>This is not the raw prediction error <span class="math inline">\(y_j - a_j\)</span>. It measures how sensitive the cost is to the weighted input <span class="math inline">\(z^l_j\)</span> of a neuron. We define the error with respect to <span class="math inline">\(z\)</span> because every weight and bias affects the cost by first changing <span class="math inline">\(z\)</span>, then changing the activation, and only then changing the final cost.</p>
+</section>
+<section id="the-four-backpropagation-equations" class="level2">
+<h2 class="anchored" data-anchor-id="the-four-backpropagation-equations">The four backpropagation equations</h2>
+<p>Backpropagation is built around four equations. Here <span class="math inline">\(L\)</span> is the final layer, and <span class="math inline">\(\odot\)</span> means element-wise multiplication.</p>
+<p><strong>1. Output-layer error</strong></p>
+<p><span class="math display">\[
+\delta^L = \nabla_a C \odot \sigma'(z^L).
+\]</span></p>
+<p>For the quadratic cost,</p>
+<p><span class="math display">\[
+\nabla_a C = a^L - y,
+\]</span></p>
+<p>so</p>
+<p><span class="math display">\[
+\delta^L = (a^L - y) \odot \sigma'(z^L).
+\]</span></p>
+<p><strong>2. Hidden-layer error from the next layer</strong></p>
+<p><span class="math display">\[
+\delta^l = ((w^{l+1})^T\delta^{l+1}) \odot \sigma'(z^l).
+\]</span></p>
+<p>The transpose moves the error signal backward through the same weights that carried activations forward.</p>
+<p><strong>3. Bias gradient</strong></p>
+<p><span class="math display">\[
+\frac{\partial C}{\partial b^l_j} = \delta^l_j.
+\]</span></p>
+<p>In vector form, <span class="math inline">\(\nabla_{b^l} C = \delta^l\)</span>.</p>
+<p><strong>4. Weight gradient</strong></p>
+<p><span class="math display">\[
+\frac{\partial C}{\partial w^l_{jk}} = \delta^l_j a^{l-1}_k.
+\]</span></p>
+<p>In matrix form,</p>
+<p><span class="math display">\[
+\nabla_{w^l} C = \delta^l (a^{l-1})^T.
+\]</span></p>
+</section>
+<section id="where-the-equations-come-from" class="level2">
+<h2 class="anchored" data-anchor-id="where-the-equations-come-from">Where the equations come from</h2>
+<p>For the output layer, apply the chain rule directly:</p>
+<p><span class="math display">\[
+\delta^L_j = \frac{\partial C}{\partial z^L_j}
+= \frac{\partial C}{\partial a^L_j}\frac{\partial a^L_j}{\partial z^L_j}
+= (a^L_j - y_j)\sigma'(z^L_j).
+\]</span></p>
+<p>For a hidden layer, the cost depends on <span class="math inline">\(a^l_j\)</span> only through the weighted inputs in the next layer:</p>
+<p><span class="math display">\[
+z^{l+1}_k = \sum_j w^{l+1}_{kj}a^l_j + b^{l+1}_k.
+\]</span></p>
+<p>So another application of the chain rule gives</p>
+<p><span class="math display">\[
+\frac{\partial C}{\partial a^l_j}
+= \sum_k \frac{\partial C}{\partial z^{l+1}_k}\frac{\partial z^{l+1}_k}{\partial a^l_j}
+= \sum_k \delta^{l+1}_k w^{l+1}_{kj}.
+\]</span></p>
+<p>Then we multiply by the local derivative of the activation:</p>
+<p><span class="math display">\[
+\delta^l_j
+= \frac{\partial C}{\partial z^l_j}
+= \left(\sum_k w^{l+1}_{kj}\delta^{l+1}_k\right)\sigma'(z^l_j).
+\]</span></p>
+<p>This is exactly the vector equation <span class="math inline">\(\delta^l = ((w^{l+1})^T\delta^{l+1}) \odot \sigma'(z^l)\)</span>.</p>
+<p>The gradients for biases and weights are simpler because</p>
+<p><span class="math display">\[
+z^l_j = \sum_k w^l_{jk}a^{l-1}_k + b^l_j.
+\]</span></p>
+<p>Therefore <span class="math inline">\(\partial z^l_j / \partial b^l_j = 1\)</span> and <span class="math inline">\(\partial z^l_j / \partial w^l_{jk} = a^{l-1}_k\)</span>, which gives the bias and weight gradient equations above.</p>
+</section>
+<section id="backpropagation-as-an-algorithm" class="level2">
+<h2 class="anchored" data-anchor-id="backpropagation-as-an-algorithm">Backpropagation as an algorithm</h2>
+<p>For one training example <span class="math inline">\((x, y)\)</span>, the algorithm is:</p>
+<ol type="1">
+<li>Run a forward pass and store every <span class="math inline">\(z^l\)</span> and <span class="math inline">\(a^l\)</span>.</li>
+<li>Compute the output error <span class="math inline">\(\delta^L\)</span>.</li>
+<li>Move backward layer by layer, computing <span class="math inline">\(\delta^{L-1}, \delta^{L-2}, \ldots, \delta^1\)</span>.</li>
+<li>Convert each layer’s <span class="math inline">\(\delta^l\)</span> into gradients: <span class="math inline">\(\nabla_{b^l} C = \delta^l\)</span> and <span class="math inline">\(\nabla_{w^l} C = \delta^l(a^{l-1})^T\)</span>.</li>
+<li>Return those gradients to the SGD step, which averages them over the mini-batch and updates the network.</li>
+</ol>
+<p>The forward pass tells us what the network did. The backward pass tells us how each parameter contributed to the mistake.</p>
+</section>
+<section id="how-this-matches-the-code" class="level2">
+<h2 class="anchored" data-anchor-id="how-this-matches-the-code">How this matches the code</h2>
+<p>The implementation in <code>Network.backprop</code> follows the algorithm almost line by line:</p>
+<ul>
+<li><code>activations = [x]</code> stores <span class="math inline">\(a^0, a^1, \ldots, a^L\)</span>;</li>
+<li><code>zs</code> stores <span class="math inline">\(z^1, z^2, \ldots, z^L\)</span>;</li>
+<li><code>cost_derivative(activations[-1], y) * sigmoid_prime(zs[-1])</code> computes <span class="math inline">\(\delta^L\)</span>;</li>
+<li><code>nabla_b[-1] = delta</code> applies <span class="math inline">\(\nabla_{b^L} C = \delta^L\)</span>;</li>
+<li><code>np.dot(delta, activations[-2].transpose())</code> applies <span class="math inline">\(\nabla_{w^L} C = \delta^L(a^{L-1})^T\)</span>;</li>
+<li>the loop over <code>l</code> walks backward through earlier layers using <code>self.weights[-l+1].transpose()</code>, the code version of <span class="math inline">\((w^{l+1})^T\)</span>.</li>
+</ul>
+<p>The negative indexes can look awkward at first, but they only mean “count layers from the end.” The math is the same as the equations above.</p>
+</section>
+<section id="why-backpropagation-is-efficient" class="level2">
+<h2 class="anchored" data-anchor-id="why-backpropagation-is-efficient">Why backpropagation is efficient</h2>
+<p>A network with architecture <code>(784, 30, 10)</code> already has <span class="math inline">\(30 \cdot 784 + 10 \cdot 30 = 23,820\)</span> weights, plus 40 biases. Estimating each derivative separately would require tens of thousands of extra forward passes per training example.</p>
+<p>Backpropagation computes all those derivatives with one forward pass and one backward pass. That is the core reason neural networks can be trained in practice.</p>
+</section>
+<section id="matrix-multiplication-note" class="level2">
+<h2 class="anchored" data-anchor-id="matrix-multiplication-note">Matrix multiplication note</h2>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="math_bihind_nn_files/figure-html/c70e1b77-1-image.png" class="img-fluid figure-img"></p>
+<figcaption>image.png</figcaption>
+</figure>
+</div>
+<p>In the weight matrix <span class="math inline">\(w\)</span>, each row contains all weights that feed into one neuron in the next layer. Multiplying <span class="math inline">\(w^l a^{l-1}\)</span> computes every neuron’s weighted input for layer <span class="math inline">\(l\)</span> at once.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/04Maksimka\.github\.io\/TimeAnalysis-Research\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+<footer class="footer"><div class="nav-footer"><div class="nav-footer-center"><div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/04Maksimka/TimeAnalysis-Research/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div></div></footer></body></html>
